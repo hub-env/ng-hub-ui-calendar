@@ -85,6 +85,14 @@ $month-card-padding-y: var(--hub-calendar-month-card-padding-y, var(--hub-ref-sp
 $week-number-width: var(--hub-calendar-week-number-width, 3rem);
 $time-column-width: var(--hub-calendar-time-column-width, 60px);
 $all-day-min-height: var(--hub-calendar-all-day-min-height, 2.5rem);
+$hour-height: var(--hub-calendar-hour-height, 60px);
+$event-min-height: var(--hub-calendar-event-min-height, 1.5rem);
+$event-gutter: var(--hub-calendar-event-gutter, 2px);
+
+// Height of the whole ruler, and so of every column beside it. `--hub-calendar-grid-hours`
+// is written on the grid by the component from `dayStartHour`/`dayEndHour`; the fallback is
+// the default full day, so the sheet still resolves on its own.
+$grid-height: calc(#{$hour-height} * var(--hub-calendar-grid-hours, 24));
 
 :host {
 	display: flex;
@@ -192,7 +200,11 @@ $all-day-min-height: var(--hub-calendar-all-day-min-height, 2.5rem);
 	}
 
 	&__week {
-		flex: 1;
+		// Grow to share the calendar's height so an ordinary month fills it, but never shrink
+		// below what the row holds: with `flex: 1` a busy day could not push its row taller, so
+		// its last chip and the "+N more" line were cut off by a cell that refused to grow. The
+		// month grid scrolls when a month needs more room than the calendar has.
+		flex: 1 0 auto;
 		display: grid;
 		grid-template-columns: repeat(7, 1fr);
 		min-height: 100px;
@@ -279,6 +291,14 @@ $all-day-min-height: var(--hub-calendar-all-day-min-height, 2.5rem);
 		overflow: hidden;
 		/* Keep event content clipped inside each day cell. */
 		min-width: 0;
+
+		// A flex child shrinks below its content by default, so a cell holding one chip more
+		// than it has room for squashed every chip instead of hiding the last one — the text
+		// spilled out of a box half its height. Chips keep their own height and the cell clips
+		// the overflow, which is what the "+N more" line is there to account for.
+		> * {
+			flex: 0 0 auto;
+		}
 	}
 
 	&__event {
@@ -296,6 +316,16 @@ $all-day-min-height: var(--hub-calendar-all-day-min-height, 2.5rem);
 		max-width: 100%;
 		min-width: 0;
 		box-sizing: border-box;
+
+		// A timed chip carries three pieces — dot, hour, title — and `inline-block` left them
+		// touching, so the dot read as part of the hour. Laying them in a row is also what lets
+		// the title be the one that gives when the cell is narrow.
+		&--timed {
+			display: flex;
+			align-items: center;
+			gap: var(--hub-calendar-event-gap, var(--hub-ref-space-1, 0.25rem));
+			padding-inline: var(--hub-calendar-event-padding-x-timed, var(--hub-ref-space-1, 0.25rem));
+		}
 
 		&:hover {
 			opacity: 0.9;
@@ -335,20 +365,25 @@ $all-day-min-height: var(--hub-calendar-all-day-min-height, 2.5rem);
 	}
 
 	&__event-dot {
-		display: inline-block;
+		flex: 0 0 auto;
 		width: 0.5rem;
 		height: 0.5rem;
 		border-radius: 50%;
 		background: #{$event-bg};
-		vertical-align: middle;
 	}
 
 	&__event-time {
+		flex: 0 0 auto;
 		color: #{$muted};
 		font-variant-numeric: tabular-nums;
 	}
 
 	&__event-title {
+		// The only part that gives. A month cell is narrow, and the hour is the half that
+		// distinguishes a timed event from an all-day one, so the title is what gets clipped.
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
 		font-weight: var(--hub-ref-font-weight-medium, 500);
 	}
 
@@ -453,11 +488,12 @@ $all-day-min-height: var(--hub-calendar-all-day-min-height, 2.5rem);
 	&__time-column {
 		width: #{$time-column-width};
 		flex-shrink: 0;
+		min-height: #{$grid-height};
 		border-right: 1px solid #{$border-color};
 	}
 
 	&__time-slot {
-		height: 60px;
+		height: #{$hour-height};
 		padding: var(--hub-ref-space-1, 0.25rem);
 		font-size: var(--hub-ref-font-size-sm, 0.875rem);
 		color: #{$muted};
@@ -469,6 +505,10 @@ $all-day-min-height: var(--hub-calendar-all-day-min-height, 2.5rem);
 		border-right: 1px solid #{$border-color};
 		position: relative;
 		transition: background 0.2s ease-in-out;
+		// The grid scrolls, so a stretched flex item stops at the viewport and its
+		// background and border end where the visible hours do, leaving the scrolled ones
+		// bare. The floor is the ruler's own height, which is what the column has to match.
+		min-height: #{$grid-height};
 
 		&:last-child {
 			border-right: none;
@@ -512,11 +552,35 @@ $all-day-min-height: var(--hub-calendar-all-day-min-height, 2.5rem);
 		color: #{$muted};
 	}
 
+	// The positioning surface of the week and day hour grids. It is exactly as tall as the
+	// ruler beside it, so a percentage of an hour here is the same distance as the same
+	// percentage of an hour there — which is the whole reason an event can be trusted to
+	// sit at its time. Only the horizontal inset survives from when this was a stack: any
+	// vertical padding would shift every band off the hour it names.
 	&__day-events {
-		padding: var(--hub-ref-space-1, 0.25rem);
-		display: flex;
-		flex-direction: column;
-		gap: var(--hub-ref-space-1, 0.25rem);
+		position: relative;
+		height: #{$grid-height};
+		padding: 0 var(--hub-ref-space-1, 0.25rem);
+
+		// A timed chip is a band, not a row: the component writes its start and duration in
+		// hours and the ruler's own row height turns them into pixels, so re-scaling the
+		// grid with `--hub-calendar-hour-height` moves the events with it. `min-height`
+		// keeps a fifteen-minute event legible without inflating its duration — the top edge
+		// still marks the real start. `left`/`right` are written as insets, so the gutter
+		// between two events sharing a column can be taken out of the box instead of out of
+		// the share each one was given.
+		> .hub-calendar__event {
+			position: absolute;
+			top: calc(#{$hour-height} * var(--hub-calendar-event-offset, 0));
+			height: calc(#{$hour-height} * var(--hub-calendar-event-span, 1));
+			min-height: #{$event-min-height};
+			width: auto;
+			max-width: none;
+			// Physical, like every other side in this sheet: the calendar is laid out
+			// left-to-right throughout, and one logical property here would flip the bands
+			// under a day column that had not flipped with them.
+			margin-right: #{$event-gutter};
+		}
 	}
 
 	&__year-view {

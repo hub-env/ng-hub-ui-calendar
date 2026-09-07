@@ -65,6 +65,7 @@ Esta librería es parte del ecosistema **Hub UI**:
 - **Múltiples Tipos de Vista**: Vistas de Mes, Semana, Día y Año
 - **Números de Semana**: columna opcional al inicio de la vista de mes (`config.showWeekNumbers`), numerada desde el primer día de semana configurado
 - **Eventos de Todo el Día**: los eventos con `allDay` tienen una franja propia y rotulada encima de la rejilla de horas en las vistas de semana y día; en la vista de mes el contraste se invierte — los eventos con hora la muestran detrás de un punto de color y los de todo el día conservan la barra rellena
+- **Eventos con Hora sobre la Rejilla**: en las vistas de semana y día un evento con hora ocupa la banda que le marca su propio reloj — el borde superior sigue a `start` y la altura a la duración — y los que se solapan se reparten el ancho de la columna en bandas iguales una al lado de otra
 - **Arrastrar y Soltar Nativo**: Reprograma eventos arrastrándolos a diferentes días
 - **Plantillas Personalizadas**: Control total sobre la renderización de eventos y celdas de día
 - **Internacionalización**: Inglés y Español integrados, extensible para cualquier idioma
@@ -84,7 +85,7 @@ npm install ng-hub-ui-calendar ng-hub-ui-utils
 
 ```typescript
 import { Component, signal } from '@angular/core';
-import { HubCalendarComponent, CalendarEvent, CalendarViewType } from 'ng-hub-ui-calendar';
+import { HubCalendarComponent, CalendarDay, CalendarEvent, CalendarViewType } from 'ng-hub-ui-calendar';
 
 @Component({
 	selector: 'app-calendar-demo',
@@ -178,7 +179,7 @@ import { HubCalendarComponent, EventTemplateDirective, DayCellTemplateDirective 
 				</div>
 			</ng-template>
 
-			<!-- Plantilla de Celta de Día Personalizada -->
+			<!-- Plantilla de Celda de Día Personalizada -->
 			<ng-template dayCellTpt let-day="day">
 				<div class="custom-day">
 					<span class="day-number">{{ day.date | date: 'd' }}</span>
@@ -191,7 +192,7 @@ import { HubCalendarComponent, EventTemplateDirective, DayCellTemplateDirective 
 	`
 })
 export class CustomTemplatesComponent {
-	events = signal<CalendarEvent<{ important: boolean }>>([
+	events = signal<CalendarEvent<{ important: boolean }>[]>([
 		{ id: '1', title: 'Reunión VIP', start: new Date(), data: { important: true } },
 		{ id: '2', title: 'Tarea Regular', start: new Date(), data: { important: false } }
 	]);
@@ -254,10 +255,16 @@ export class I18nComponent {}
 //   "HUBUI": {
 //     "CALENDAR": {
 //       "weekdays": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+//       "weekdaysFull": ["Sunday", "Monday", ...],
 //       "months": ["January", "February", ...],
+//       "monthsShort": ["Jan", "Feb", ...],
 //       "today": "Today",
 //       "previous": "Previous",
 //       "next": "Next",
+//       "month": "Month", "week": "Week", "day": "Day", "year": "Year",
+//       "allDay": "All day",
+//       "weekAbbr": "Wk",
+//       "weekNumberLabel": "Week {count}",
 //       "moreEvents": "+{count} more",
 //       "eventCount": "{count} events"
 //     }
@@ -368,9 +375,28 @@ interface CalendarDay<T = any> {
 	isSelected?: boolean;
 }
 
+// Geometría de un evento con hora sobre la rejilla de semana/día, tal como la devuelve
+// getTimedEventPlacements(day). offset/span van en horas desde el inicio de la regla,
+// left/right en porcentaje de la columna del día.
+interface CalendarEventPlacement<T = any> {
+	event: CalendarEvent<T>;
+	offset: number;
+	span: number;
+	left: number;
+	right: number;
+}
+
 interface CalendarWeek<T = any> {
 	days: CalendarDay<T>[];
 	weekNumber?: number; // siempre relleno; config.showWeekNumbers solo decide si se dibuja
+}
+
+// Forma de cada entrada de la señal pública `months` del calendario (vista de año).
+interface CalendarMonth {
+	date: Date;
+	name: string;
+	shortName: string; // sale de la entrada monthsShort del diccionario
+	eventCount: number;
 }
 
 enum CalendarViewType {

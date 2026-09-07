@@ -189,7 +189,7 @@
 				</div>
 			}
 		</div>
-		<div class="hub-calendar__time-grid">
+		<div class="hub-calendar__time-grid" [style.--hub-calendar-grid-hours]="hours().length">
 			<div class="hub-calendar__time-column">
 				@for (hour of hours(); track hour) {
 					<div class="hub-calendar__time-slot">{{ hour }}:00</div>
@@ -206,24 +206,30 @@
 					(drop)="onDrop(day, $event)"
 				>
 					<div class="hub-calendar__day-events">
-						@for (event of getTimedEvents(day); track event.id || $index) {
+						@for (placement of getTimedEventPlacements(day); track placement.event.id || $index) {
 							<div
 								class="hub-calendar__event"
 								role="button"
 								tabindex="0"
-								[class]="getEventClass(event)"
-								[attr.aria-label]="getEventAriaLabel(event)"
-								[hubOverflowTooltip]="event.title"
+								[class]="getEventClass(placement.event)"
+								[style.--hub-calendar-event-offset]="placement.offset"
+								[style.--hub-calendar-event-span]="placement.span"
+								[style.left.%]="placement.left"
+								[style.right.%]="placement.right"
+								[attr.aria-label]="getEventAriaLabel(placement.event)"
+								[hubOverflowTooltip]="placement.event.title"
 								[attr.draggable]="mergedConfig().dragAndDropEnabled"
-								(click)="onEventClick(event, $event)"
-								(keydown)="onEventKeydown(event, $event)"
-								(dragstart)="onDragStart(event, $event)"
+								(click)="onEventClick(placement.event, $event)"
+								(keydown)="onEventKeydown(placement.event, $event)"
+								(dragstart)="onDragStart(placement.event, $event)"
 								(dragend)="onDragEnd($event)"
 							>
 								@if (eventTemplate()) {
-									<ng-container *ngTemplateOutlet="eventTemplate(); context: { event: event }"></ng-container>
+									<ng-container
+										*ngTemplateOutlet="eventTemplate(); context: { event: placement.event }"
+									></ng-container>
 								} @else {
-									<span class="hub-calendar__event-title">{{ event.title }}</span>
+									<span class="hub-calendar__event-title">{{ placement.event.title }}</span>
 								}
 							</div>
 						}
@@ -277,7 +283,7 @@
 				}
 			</div>
 		</div>
-		<div class="hub-calendar__time-grid">
+		<div class="hub-calendar__time-grid" [style.--hub-calendar-grid-hours]="hours().length">
 			<div class="hub-calendar__time-column">
 				@for (hour of hours(); track hour) {
 					<div class="hub-calendar__time-slot">{{ hour }}:00</div>
@@ -290,32 +296,40 @@
 				(dragleave)="onDragLeave($event)"
 				(drop)="onDrop(currentDay(), $event)"
 			>
-				@for (event of getTimedEvents(currentDay()); track event.id || $index) {
-					<div
-						class="hub-calendar__event"
-						role="button"
-						tabindex="0"
-						[class]="getEventClass(event)"
-						[attr.aria-label]="getEventAriaLabel(event)"
-						[hubOverflowTooltip]="event.title"
-						[attr.draggable]="mergedConfig().dragAndDropEnabled"
-						(click)="onEventClick(event, $event)"
-						(keydown)="onEventKeydown(event, $event)"
-						(dragstart)="onDragStart(event, $event)"
-						(dragend)="onDragEnd($event)"
-					>
-						@if (eventTemplate()) {
-							<ng-container *ngTemplateOutlet="eventTemplate(); context: { event: event }"></ng-container>
-						} @else {
-							<div class="hub-calendar__event-content">
-								<span class="hub-calendar__event-title">{{ event.title }}</span>
-								@if (event.description) {
-									<span class="hub-calendar__event-desc">{{ event.description }}</span>
-								}
-							</div>
-						}
-					</div>
-				}
+				<div class="hub-calendar__day-events">
+					@for (placement of getTimedEventPlacements(currentDay()); track placement.event.id || $index) {
+						<div
+							class="hub-calendar__event"
+							role="button"
+							tabindex="0"
+							[class]="getEventClass(placement.event)"
+							[style.--hub-calendar-event-offset]="placement.offset"
+							[style.--hub-calendar-event-span]="placement.span"
+							[style.left.%]="placement.left"
+							[style.right.%]="placement.right"
+							[attr.aria-label]="getEventAriaLabel(placement.event)"
+							[hubOverflowTooltip]="placement.event.title"
+							[attr.draggable]="mergedConfig().dragAndDropEnabled"
+							(click)="onEventClick(placement.event, $event)"
+							(keydown)="onEventKeydown(placement.event, $event)"
+							(dragstart)="onDragStart(placement.event, $event)"
+							(dragend)="onDragEnd($event)"
+						>
+							@if (eventTemplate()) {
+								<ng-container
+									*ngTemplateOutlet="eventTemplate(); context: { event: placement.event }"
+								></ng-container>
+							} @else {
+								<div class="hub-calendar__event-content">
+									<span class="hub-calendar__event-title">{{ placement.event.title }}</span>
+									@if (placement.event.description) {
+										<span class="hub-calendar__event-desc">{{ placement.event.description }}</span>
+									}
+								</div>
+							}
+						</div>
+					}
+				</div>
 			</div>
 		</div>
 	</div>

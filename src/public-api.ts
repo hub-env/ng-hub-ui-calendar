@@ -12,7 +12,7 @@ export { EventTemplateDirective } from './lib/directives/event-template.directiv
 
 // Models
 export type { CalendarDay, CalendarMonth, CalendarWeek } from './lib/models/calendar-day';
-export type { CalendarEvent } from './lib/models/calendar-event';
+export type { CalendarEvent, CalendarEventPlacement } from './lib/models/calendar-event';
 export { CalendarViewType, DEFAULT_CALENDAR_CONFIG } from './lib/models/calendar-view';
 export type { CalendarConfig } from './lib/models/calendar-view';
 

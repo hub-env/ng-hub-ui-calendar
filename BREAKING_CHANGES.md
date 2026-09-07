@@ -19,9 +19,10 @@ The major version tracks the Angular major the library targets, so it cannot als
 - **Migration**:
     - `initialView` → bind the `view` input, which is the two-way state the calendar actually reads.
       `[view]="CalendarViewType.WEEK"` opens on the week view; `[(view)]` keeps following it.
-    - `slotDuration` → delete it. The day and week grids list a day's events beside an hour ruler; they
-      do not position an event against a slot, so there is no resolution for the value to change. Use
-      `config.dayStartHour` / `config.dayEndHour` to bound the ruler.
+    - `slotDuration` → delete it. The same release taught the day and week grids to position an event
+      against the ruler, but they place it at its exact time rather than snapping it to a slot, so
+      there is still no resolution for the value to change. Use `config.dayStartHour` /
+      `config.dayEndHour` to bound the ruler, and `--hub-calendar-hour-height` to re-scale it.
     - `eventCreationEnabled` → delete it. The calendar never creates or mutates events; handle `dayClick`
       and add the event to your own state.
 
@@ -38,6 +39,52 @@ const config: CalendarConfig = {
 const config: CalendarConfig = { dayStartHour: 8 };
 // <hub-calendar [view]="CalendarViewType.WEEK" [config]="config" (dayClick)="createEvent($event)" />
 ```
+
+### Changed: the week and day hour grids place their events
+
+- **Change**: a timed event is no longer a chip stacked at the top of its day column. It is a band
+  positioned against the ruler — the top follows `start`, the height follows the duration — and the
+  events that overlap in time share the width of the column between them, in equal side-by-side
+  columns.
+- **Why it is worth saying plainly**: the ruler had never ordered anything. Every timed event was
+  stacked from the top of its column in the order the caller supplied them, so an 11:00 event was
+  drawn exactly where 00:00 is and a two-hour meeting was the same height as a five-minute one.
+  Nothing about the change is subtle: **every week and day view redraws**, and a calendar whose
+  events happened to look right because they were listed in order will now find them spread down
+  the day.
+- **Impact**, point by point:
+    - The chips are **absolutely positioned** inside `.hub-calendar__day-events`, which is now the
+      positioning surface and is exactly as tall as the ruler. A stylesheet that set a `height`,
+      `margin` or `width` on `.hub-calendar__event` inside that wrapper, or relied on the wrapper
+      being a flex column with a `gap`, no longer gets what it expected.
+    - They render in **start order**, not in the order the `events` array lists them. DOM order no
+      longer carries any other meaning.
+    - An event with **no `end`** is drawn one hour long instead of taking the same height as every
+      other chip. So is one whose `end` precedes its `start`.
+    - An event whose hours fall **entirely outside `config.dayStartHour`–`config.dayEndHour`** is not
+      drawn at all. It used to appear regardless, because the ruler decided nothing. The default
+      ruler covers the whole day, so this only reaches a calendar that bounds it — widen the window
+      to bring the event back.
+    - An event that **started on a previous day** begins its band at the top of the ruler, and one
+      that runs past the last hour is cut there. Neither used to be visible in the geometry, because
+      there was none.
+    - Drag and drop is unchanged: a drop still lands on a **day**, not on an hour.
+- **Migration**: nothing to write for the common case — the geometry arrives on its own. To re-scale
+  the grid, set `--hub-calendar-hour-height`; the events follow it, because it is the unit they are
+  measured in. To change the floor under a very short event, set `--hub-calendar-event-min-height`;
+  to close the gap between two events sharing a column, set `--hub-calendar-event-gutter` to `0`.
+
+```css
+hub-calendar {
+	/* A denser day: half-height hours, and the bands with them. */
+	--hub-calendar-hour-height: 30px;
+	--hub-calendar-event-min-height: 1rem;
+}
+```
+
+A consumer that needs the same arithmetic for a grid of its own can read it off the component:
+`getTimedEventPlacements(day)` returns one `CalendarEventPlacement` per drawable event, `offset`
+and `span` in hours from the top of the ruler, `left` and `right` in percent of the column.
 
 ### Changed: all-day and timed events are drawn, and placed, differently
 

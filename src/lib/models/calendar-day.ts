@@ -84,6 +84,9 @@ export interface CalendarWeek<T = any> {
 /**
  * Represents a month in the year view.
  * Contains summary information for the month card.
+ *
+ * This is the shape of every entry of the calendar's public `months` signal, so all four
+ * fields are filled whether or not the built-in card draws them.
  */
 export interface CalendarMonth {
 	/**
@@ -93,14 +96,15 @@ export interface CalendarMonth {
 	date: Date;
 
 	/**
-	 * Full name of the month (e.g., "January").
-	 * Localized based on the current language setting.
+	 * Full name of the month (e.g., "January"), from the `months` dictionary entry.
+	 * Localized like every other label, by the `locale` input or an application dictionary.
 	 */
 	name: string;
 
 	/**
-	 * Short name of the month (e.g., "Jan").
-	 * Used when space is limited.
+	 * Short name of the month (e.g., "Jan"), from the `monthsShort` dictionary entry.
+	 * The built-in month card prints the full `name`; this is what a caller reading `months`
+	 * uses to lay the year out in less room than the card takes.
 	 */
 	shortName: string;
 

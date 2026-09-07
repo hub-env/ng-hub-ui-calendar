@@ -25,6 +25,55 @@ All notable changes to this project will be documented in this file.
 - **`CalendarWeek.weekNumber` is populated.** It was part of the public type and never filled in, so a
   consumer reading the weeks could not get the number even by computing around the missing column.
 
+- **`CalendarMonth.shortName` is populated, and the year view is typed by the public interface.** The
+  same defect one type further down: `CalendarMonth` is exported from the public API and documents four
+  fields, but the year view assembled anonymous `{ date, name, eventCount }` objects, so `shortName` was
+  declared, documented as the name to use "when space is limited", and written by nothing. It was the
+  only reader the `monthsShort` dictionary entry ever had, which left that entry shipping filled in both
+  bundled languages, listed in the `CALENDAR_I18N` docs as a translation a new language must supply, and
+  read by no line of the component — a key translators were being asked to fill for nothing. The `months`
+  signal is now typed `CalendarMonth[]` and fills all four fields, `shortName` from `monthsShort` through
+  the same lookup as every other label, so it follows the `locale` input and an application dictionary
+  alike. The built-in month card still prints the full name; what changes is that a consumer reading
+  `months` to lay the year out in less room than the card takes finally gets the short name the type
+  promised.
+
+- **Timed events are placed against the hour ruler in the week and day views.** The ruler was
+  drawn and read by nothing: every timed event was stacked from the top of its column in the order
+  the caller supplied, so an 11:00 event sat exactly where 00:00 is and a two-hour meeting was the
+  same height as a five-minute one. An event now owns the band its own clock gives it — the top
+  follows `start`, the height follows the duration — clipped to the part of it that falls inside
+  the ruler, so an event that began yesterday starts at the top of today instead of above it. An
+  event that declares no `end` is drawn one hour long, which is what FullCalendar assumes for the
+  same case (`defaultTimedEventDuration`), and so is one whose `end` precedes its `start`. Three
+  tokens size the result: `--hub-calendar-hour-height` (`60px`) is the height of one hour and the
+  unit every band is measured in, so re-scaling it moves the events with the ruler;
+  `--hub-calendar-event-min-height` (`1.5rem`) keeps a fifteen-minute event legible without
+  inflating its duration — the top edge still marks the real start; and
+  `--hub-calendar-event-gutter` (`2px`) is the gap between two events sharing a column.
+
+- **Events that overlap in time share the width of the day column.** Two events at the same hour
+  cannot both take the whole column, and drawing one over the other hides it. The rule is the
+  greedy column packing FullCalendar, Google Calendar and Outlook Web all build on: events are
+  grouped into clusters of overlap, each event takes the first column free at its start time, and
+  every event of the cluster ends up `1 / columns` wide. So a pair at 09:00 becomes two halves and
+  leaves an unrelated event at 17:00 at full width; a column freed by an event that has already
+  ended is reused rather than doubling the count; and two events that merely touch — one ending
+  where the next starts — are not treated as in conflict. On a tie the longer event takes the
+  leftmost column, so short events stack to its right. Two refinements of those calendars are
+  deliberately left out and noted here so their absence is not read as an oversight: an event does
+  **not** grow rightwards into columns nothing occupies while it runs (FullCalendar's expansion
+  step, which buys width at the price of neighbours of unequal width for no reason a reader can
+  see), and the bands are **not** offset to show through one another (`slotEventOverlap`, a hint
+  that only pays off once the columns are too narrow to read). Both can be added later without
+  changing anything a consumer depends on.
+
+- **The new placement is public.** `getTimedEventPlacements(day)` returns the geometry the views
+  draw — one `CalendarEventPlacement` per drawable event, with `offset` and `span` in hours from
+  the top of the ruler and `left`/`right` in percent of the column — and the interface is exported
+  from the public API, so a consumer laying out its own hour grid can reuse the arithmetic instead
+  of reimplementing it.
+
 - **An all-day strip above the week and day grids.** Week and day views now open with a row of their
   own above the hour ruler, separated by a rule, labelled "all day" in the same left margin the hours
   use, and all-day events are drawn there instead of in the hour columns. That position is the whole
@@ -55,12 +104,43 @@ All notable changes to this project will be documented in this file.
   input rather than the application `LOCALE_ID`, like every other label, and is printed only on the
   day the event starts: on a later day of a multi-day event it would name an hour of a different day.
 
+- **A timed event outside `config.dayStartHour`–`dayEndHour` is no longer drawn.** While the events
+  were merely stacked, an hour the ruler did not reach made no difference to where the chip landed;
+  now it does, and a ruler that stops at 18:00 has nowhere honest to put 23:00. The event is left
+  out of the grid rather than pinned to an edge that would misstate its time, which is what
+  FullCalendar does with `slotMinTime` / `slotMaxTime`. The default ruler covers the whole day, so
+  this only reaches a calendar that bounds it. See `BREAKING_CHANGES.md`.
+
 - **Month-view timed chips carry a `hub-calendar__event--timed` modifier**, the counterpart of
   `--all-day`, so the two can be dressed apart from a consumer stylesheet. See `BREAKING_CHANGES.md`:
   the default look of a timed chip in the month view changes, and that is every chip most calendars
   draw.
 
 ### Fixed
+
+- **A month chip no longer shrinks below its own text.** The chips are flex children of the cell,
+  so a day holding one more event than the cell had room for squashed every chip to half its
+  height and let the text spill out of it, rather than hiding the last one behind the "+N more"
+  line that exists for exactly that. Chips keep their height; the cell clips.
+- **A week row grows when a busy day needs it.** The rows shared the calendar height with
+  `flex: 1`, so a cell could not push its row taller and the third chip and the "+N more" line
+  were cut off by a row that refused to grow. Rows still fill the calendar on an ordinary month,
+  and the month grid scrolls when one needs more room than the calendar has.
+- **The dot, the hour and the title of a timed chip stop touching.** The chip laid them out as
+  inline content with no separation, so the dot read as part of the hour. They sit in a row now,
+  with the title as the only part that gives when the cell is narrow.
+- **The month grid writes the hour short.** A cell is a hundred-odd pixels wide and the hour
+  shares it with a dot and a title, so `9:00 AM` left the title two characters. The minutes are
+  dropped when they are zero — `9 AM`, `9` — which is what Google Calendar and FullCalendar both
+  do in the same place. At half past they come back: `9` for 9:30 would be a different time, not
+  a shorter way of writing the same one.
+
+- **The day view lines its timed events up with the all-day strip.** The strip and the hour grid are
+  two lanes of one column, and a bar that starts further left than the one above it reads as
+  misplaced rather than as different. The week view had always wrapped its timed events in
+  `.hub-calendar__day-events`, the element carrying the inset and the gap; the day view dropped them
+  straight into the column and lost both. Both views share the wrapper now, so the two lanes cannot
+  drift apart again.
 
 - **The `--hub-calendar-*` tokens could not be set from the application.** The whole family was
   declared in a single `:root, :host` block, and the component uses emulated encapsulation: the

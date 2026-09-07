@@ -6,19 +6,20 @@ The library ships one component, `hub-calendar`, plus the two structural directi
 
 ## Views and navigation
 
-| Category       | Functionality                                     | Example Covered |
-| :------------- | :------------------------------------------------ | :-------------: |
-| **Views**      | Month grid (`view="month"`)                       |       ✅        |
-|                | Week time grid (`view="week"`)                    |       ✅        |
-|                | Day time grid (`view="day"`)                      |       ✅        |
-|                | Year overview of month cards (`view="year"`)      |       ✅        |
-|                | Two-way `[(view)]` / `viewChange`                 |       ✅        |
-|                | Switcher narrowed by `config.availableViews`      |       ❌        |
-| **Navigation** | Previous / next period buttons                    |       ✅        |
-|                | `Today` shortcut                                  |       ✅        |
-|                | Two-way `[(selectedDate)]` / `selectedDateChange` |       ✅        |
-|                | `dateChange` emitted on navigation                |       ✅        |
-|                | Year-view month card drills into that month       |       ❌        |
+| Category       | Functionality                                      | Example Covered |
+| :------------- | :------------------------------------------------- | :-------------: |
+| **Views**      | Month grid (`view="month"`)                        |       ✅        |
+|                | Week time grid (`view="week"`)                     |       ✅        |
+|                | Day time grid (`view="day"`)                       |       ✅        |
+|                | Year overview of month cards (`view="year"`)       |       ✅        |
+|                | Two-way `[(view)]` / `viewChange`                  |       ✅        |
+|                | Switcher narrowed by `config.availableViews`       |       ❌        |
+| **Navigation** | Previous / next period buttons                     |       ✅        |
+|                | `Today` shortcut                                   |       ✅        |
+|                | Two-way `[(selectedDate)]` / `selectedDateChange`  |       ✅        |
+|                | `dateChange` emitted on navigation                 |       ✅        |
+|                | Year-view month card drills into that month        |       ❌        |
+|                | `months` signal of typed `CalendarMonth` summaries |       ❌        |
 
 ## Events
 
@@ -29,6 +30,10 @@ The library ships one component, `hub-calendar`, plus the two structural directi
 |                   | `dayClick` output                                                |       ✅        |
 | **Styling hooks** | `eventClass` input (static string or function)                   |       ✅        |
 |                   | Per-event `cssClass` (static string or function)                 |       ✅        |
+| **Hour grid**     | Timed events placed against the ruler by start and duration      |       ✅        |
+|                   | Overlapping events share the column in equal side-by-side bands  |       ✅        |
+|                   | An event with no `end` drawn one hour long                       |       ❌        |
+|                   | A band clipped to the ruler (previous day, past the last hour)   |       ❌        |
 | **All day**       | `allDay` events lead their day and carry an `--all-day` modifier |       ✅        |
 |                   | Labelled all-day strip above the week and day hour grids         |       ✅        |
 |                   | The strip is drawn even on a period with no all-day event        |       ✅        |
@@ -44,9 +49,15 @@ The library ships one component, `hub-calendar`, plus the two structural directi
 Dropping an event lands it on a **day**, not on a time slot, in all three views that accept a drop. The
 calendar never mutates the `events` array: creating, editing and deleting an event stay in the caller's own
 state, driven by the outputs above — there is no create-on-empty-slot affordance, which is why 22.7.0
-withdrew the `eventCreationEnabled` option that pretended to govern one. The day and week grids list a
-day's events beside the hour ruler rather than positioning them against it, which is why `slotDuration`
-went the same way.
+withdrew the `eventCreationEnabled` option that pretended to govern one. The day and week grids do position
+an event against the hour ruler, but at its exact time rather than snapped to a slot, which is why
+`slotDuration` went the same way; the ruler is re-scaled with `--hub-calendar-hour-height`.
+
+Overlapping events are laid out by greedy column packing — the rule FullCalendar, Google Calendar and
+Outlook Web share — so a cluster of events that collide splits the column into equal side-by-side bands and
+leaves the rest of the day at full width. The two refinements those calendars add are **not** implemented:
+an event does not grow into columns nothing occupies while it runs, and the bands are not offset to show
+through one another. `getTimedEventPlacements(day)` exposes the resulting geometry.
 
 ## Templates
 
@@ -64,6 +75,7 @@ went the same way.
 | **Week numbers** | `config.showWeekNumbers` draws a leading column in month view |       ✅        |
 |                  | Numbering derived from the configured first day of the week   |       ✅        |
 | **Time grid**    | `config.dayStartHour` / `config.dayEndHour`                   |       ✅        |
+|                  | Events outside the bounded ruler are left undrawn             |       ❌        |
 | **Views**        | `config.availableViews`                                       |       ❌        |
 | **Drag & drop**  | `config.dragAndDropEnabled`                                   |       ❌        |
 
@@ -74,6 +86,7 @@ went the same way.
 | **Bundled**     | `locale` with the bundled `en` and `es` dictionaries      |       ✅        |
 |                 | Fallback to English for a locale that is not bundled      |       ✅        |
 |                 | `weekAbbr` / `weekNumberLabel` for the week-number column |       ❌        |
+|                 | `monthsShort` behind `CalendarMonth.shortName`            |       ❌        |
 | **Application** | `HUBUI.CALENDAR.*` through `HubTranslationService`        |       ❌        |
 |                 | Legacy top-level `calendar.*` branch as the fallback      |       ❌        |
 |                 | Labels re-render when the dictionary source emits         |       ❌        |

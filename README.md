@@ -71,6 +71,7 @@ This library is part of the **Hub UI** ecosystem:
 - **Multiple View Types**: Month, Week, Day, and Year views
 - **Week Numbers**: optional leading column in month view (`config.showWeekNumbers`), numbered from the configured first day of the week
 - **All-Day Events**: `allDay` events get a labelled strip of their own above the week and day hour grids; in month view the contrast is inverted instead — timed events show their start time behind a coloured dot, all-day ones keep the filled bar
+- **Timed Events on the Hour Grid**: in week and day views a timed event occupies the band its own clock gives it — the top follows `start`, the height follows the duration — and events that overlap share the column in equal side-by-side bands
 - **Native Drag & Drop**: Reschedule events by dragging to different days
 - **Custom Templates**: Full control over event and day cell rendering
 - **Internationalization**: Built-in English and Spanish, extensible for any language
@@ -91,7 +92,7 @@ npm install ng-hub-ui-calendar ng-hub-ui-utils
 
 ```typescript
 import { Component, signal } from '@angular/core';
-import { HubCalendarComponent, CalendarEvent, CalendarViewType } from 'ng-hub-ui-calendar';
+import { HubCalendarComponent, CalendarDay, CalendarEvent, CalendarViewType } from 'ng-hub-ui-calendar';
 
 @Component({
 	selector: 'app-calendar-demo',
@@ -198,7 +199,7 @@ import { HubCalendarComponent, EventTemplateDirective, DayCellTemplateDirective 
 	`
 })
 export class CustomTemplatesComponent {
-	events = signal<CalendarEvent<{ important: boolean }>>([
+	events = signal<CalendarEvent<{ important: boolean }>[]>([
 		{ id: '1', title: 'VIP Meeting', start: new Date(), data: { important: true } },
 		{ id: '2', title: 'Regular Task', start: new Date(), data: { important: false } }
 	]);
@@ -261,10 +262,16 @@ export class I18nComponent {}
 //   "HUBUI": {
 //     "CALENDAR": {
 //       "weekdays": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+//       "weekdaysFull": ["Sunday", "Monday", ...],
 //       "months": ["January", "February", ...],
+//       "monthsShort": ["Jan", "Feb", ...],
 //       "today": "Today",
 //       "previous": "Previous",
 //       "next": "Next",
+//       "month": "Month", "week": "Week", "day": "Day", "year": "Year",
+//       "allDay": "All day",
+//       "weekAbbr": "Wk",
+//       "weekNumberLabel": "Week {count}",
 //       "moreEvents": "+{count} more",
 //       "eventCount": "{count} events"
 //     }
@@ -375,9 +382,28 @@ interface CalendarDay<T = any> {
 	isSelected?: boolean;
 }
 
+// Geometry of one timed event on the week/day hour grid, as returned by
+// getTimedEventPlacements(day). offset/span are in hours from the top of the ruler,
+// left/right in percent of the day column.
+interface CalendarEventPlacement<T = any> {
+	event: CalendarEvent<T>;
+	offset: number;
+	span: number;
+	left: number;
+	right: number;
+}
+
 interface CalendarWeek<T = any> {
 	days: CalendarDay<T>[];
 	weekNumber?: number; // always filled in; config.showWeekNumbers only decides whether it is drawn
+}
+
+// Shape of every entry of the calendar's public `months` signal (year view).
+interface CalendarMonth {
+	date: Date;
+	name: string;
+	shortName: string; // from the monthsShort dictionary entry
+	eventCount: number;
 }
 
 enum CalendarViewType {

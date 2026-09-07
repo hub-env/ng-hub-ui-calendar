@@ -26,8 +26,8 @@ import { HubOverflowTooltipDirective, HubTranslationService } from 'ng-hub-ui-ut
 import { DayCellTemplateDirective } from '../../directives/day-cell-template.directive';
 import { EventTemplateDirective } from '../../directives/event-template.directive';
 import { CALENDAR_I18N } from '../../i18n/calendar-i18n';
-import { CalendarDay, CalendarWeek } from '../../models/calendar-day';
-import { CalendarEvent } from '../../models/calendar-event';
+import { CalendarDay, CalendarMonth, CalendarWeek } from '../../models/calendar-day';
+import { CalendarEvent, CalendarEventPlacement } from '../../models/calendar-event';
 import { CalendarConfig, CalendarViewType, DEFAULT_CALENDAR_CONFIG } from '../../models/calendar-view';
 
 /**
@@ -90,6 +90,19 @@ const CALENDAR_BUILT_IN_VARIANTS = new Set<string>([
 	}
 })
 export class HubCalendarComponent<T = any> {
+	/** Milliseconds in one hour, the unit the hour grid measures every band in. */
+	private static readonly MS_PER_HOUR = 60 * 60 * 1000;
+
+	/**
+	 * Duration assumed for a timed event that declares no `end`.
+	 *
+	 * `end` is optional in `CalendarEvent`, and a band of zero height is not a band. One
+	 * hour is what FullCalendar assumes for the same case (`defaultTimedEventDuration`),
+	 * and it is long enough to stay readable at any sane row height instead of relying on
+	 * the CSS floor to rescue every such event.
+	 */
+	private static readonly DEFAULT_TIMED_EVENT_DURATION_MS = HubCalendarComponent.MS_PER_HOUR;
+
 	/**
 	 * Translation service injected for i18n support.
 	 * Falls back to built-in translations if not available.
@@ -338,6 +351,27 @@ export class HubCalendarComponent<T = any> {
 	});
 
 	/**
+	 * The same clock, written short, for the month grid.
+	 *
+	 * A month cell is a hundred-odd pixels wide and the hour shares it with a dot and a title.
+	 * Spelling `9:00 AM` there leaves the title a couple of characters, so the minutes are
+	 * dropped when they are zero — `9 AM`, `9` — which is what Google Calendar and FullCalendar
+	 * both do in their month grids. On the half hour the minutes come back, because `9` for
+	 * 9:30 would be a lie rather than an abbreviation.
+	 */
+	private readonly shortTimeFormatter = computed(() => {
+		const build = (locale: string | undefined, minute: boolean) => {
+			const options: Intl.DateTimeFormatOptions = minute ? { hour: 'numeric', minute: '2-digit' } : { hour: 'numeric' };
+			return new Intl.DateTimeFormat(locale, options);
+		};
+		try {
+			return { sharp: build(this.locale(), false), split: build(this.locale(), true) };
+		} catch {
+			return { sharp: build(undefined, false), split: build(undefined, true) };
+		}
+	});
+
+	/**
 	 * Visible text of each view-switcher button, keyed by the view it selects.
 	 *
 	 * The dictionary already carries `month` / `week` / `day` / `year` under exactly the enum's
@@ -394,7 +428,7 @@ export class HubCalendarComponent<T = any> {
 	 * Months array for year view.
 	 * Contains 12 month objects with event counts.
 	 */
-	readonly months = computed(() => this.generateYearMonths());
+	readonly months = computed<CalendarMonth[]>(() => this.generateYearMonths());
 
 	/**
 	 * Hours array for day/week time slots.
@@ -548,7 +582,7 @@ export class HubCalendarComponent<T = any> {
 	 * @param month - The month summary to describe
 	 * @returns Month label (e.g. "January 2026, 3 events")
 	 */
-	getMonthAriaLabel(month: { date: Date; name: string; eventCount: number }): string {
+	getMonthAriaLabel(month: Pick<CalendarMonth, 'date' | 'name' | 'eventCount'>): string {
 		const base = `${month.name} ${month.date.getFullYear()}`;
 		return month.eventCount > 0 ? `${base}, ${this.getEventCountLabel(month.eventCount)}` : base;
 	}
@@ -633,6 +667,129 @@ export class HubCalendarComponent<T = any> {
 	}
 
 	/**
+	 * Places the timed events of a day against the hour ruler of the week and day views.
+	 *
+	 * Vertically each event owns the band its own clock says it owns: the top follows the
+	 * start, the height follows the duration. Horizontally the events that overlap in time
+	 * share the width of the column, which is the only part of this that needs an algorithm.
+	 *
+	 * The one used here is the greedy column packing FullCalendar, Google Calendar and
+	 * Outlook Web all build on:
+	 *
+	 * 1. events are cut to the part of them that falls inside the ruler and sorted by start,
+	 *    longest first on a tie, so the long event takes the leftmost column and the short
+	 *    ones stack to its right rather than the other way round;
+	 * 2. they are grouped into clusters of events transitively connected by overlap, so a
+	 *    pair at 09:00 never narrows an unrelated event at 17:00;
+	 * 3. inside a cluster each event takes the first column already free at its start time,
+	 *    opening a new one only when every existing column is still busy;
+	 * 4. every event of the cluster is then `1 / columns` wide, at `column / columns` from
+	 *    the left.
+	 *
+	 * Two refinements those calendars add are deliberately left out. FullCalendar lets an
+	 * event grow rightwards into columns nothing occupies while it runs, which buys width at
+	 * the price of neighbours of unequal width for no reason a reader can see. And it offsets
+	 * the bands so each one shows through the next (`slotEventOverlap`), a hint that pays off
+	 * only once the columns are too narrow to read; without it every band keeps a whole edge
+	 * of its own, which is the more honest of the two pictures. Both stay available later
+	 * without changing this contract, since they only move `left`/`right`.
+	 *
+	 * @param day - The day whose events are being placed
+	 * @returns One placement per drawable event, in start order
+	 */
+	getTimedEventPlacements(day: CalendarDay<T>): CalendarEventPlacement<T>[] {
+		const config = this.mergedConfig();
+		// Hours are counted as fixed-width offsets from local midnight, which is the same
+		// assumption the ruler beside them already makes by drawing one row per hour: on a
+		// day with a clock change the two are wrong together rather than out of step.
+		const midnight = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate()).getTime();
+		const rulerStart = midnight + config.dayStartHour * HubCalendarComponent.MS_PER_HOUR;
+		const rulerEnd = midnight + config.dayEndHour * HubCalendarComponent.MS_PER_HOUR;
+
+		const bands = this.getTimedEvents(day)
+			.map((event) => this.clipToRuler(event, rulerStart, rulerEnd))
+			.filter((band): band is { event: CalendarEvent<T>; start: number; end: number } => band !== null)
+			.sort((a, b) => a.start - b.start || b.end - a.end);
+
+		const placements: CalendarEventPlacement<T>[] = [];
+		let cluster: { band: (typeof bands)[number]; column: number }[] = [];
+		let columnEnds: number[] = [];
+
+		/** Turns the closed cluster into placements, now that its column count is known. */
+		const close = (): void => {
+			const columns = columnEnds.length;
+			for (const { band, column } of cluster) {
+				placements.push({
+					event: band.event,
+					offset: (band.start - rulerStart) / HubCalendarComponent.MS_PER_HOUR,
+					span: (band.end - band.start) / HubCalendarComponent.MS_PER_HOUR,
+					left: (column / columns) * 100,
+					right: ((columns - column - 1) / columns) * 100
+				});
+			}
+			cluster = [];
+			columnEnds = [];
+		};
+
+		for (const band of bands) {
+			// A band starting after every open column has ended shares its width with none
+			// of them: the cluster is finished and its width can be divided.
+			if (columnEnds.length && band.start >= Math.max(...columnEnds)) {
+				close();
+			}
+
+			let column = columnEnds.findIndex((end) => end <= band.start);
+			if (column === -1) {
+				column = columnEnds.length;
+				columnEnds.push(band.end);
+			} else {
+				columnEnds[column] = Math.max(columnEnds[column], band.end);
+			}
+			cluster.push({ band, column });
+		}
+		close();
+
+		return placements;
+	}
+
+	/**
+	 * Cuts an event down to the slice of it the ruler can show.
+	 *
+	 * An event that started yesterday begins its band at the top of the ruler rather than
+	 * above it — the band answers "where is this event today", and today it is already
+	 * running — and the same clipping at the bottom keeps a multi-day event from painting
+	 * over the rows below. An event landing entirely outside `dayStartHour`–`dayEndHour`
+	 * has no band at all: a ruler that stops at 18:00 has nowhere honest to draw 23:00.
+	 * @param event - The event being placed
+	 * @param rulerStart - Timestamp the ruler starts at
+	 * @param rulerEnd - Timestamp the ruler ends at
+	 * @returns The visible slice, or `null` when none of the event falls inside the ruler
+	 */
+	private clipToRuler(
+		event: CalendarEvent<T>,
+		rulerStart: number,
+		rulerEnd: number
+	): { event: CalendarEvent<T>; start: number; end: number } | null {
+		const start = new Date(event.start).getTime();
+		if (!Number.isFinite(start)) {
+			return null;
+		}
+
+		// A missing, unparsable or backwards `end` all mean the same thing here: the event
+		// states no duration, so it gets the default one instead of a band of zero height.
+		const declaredEnd = event.end ? new Date(event.end).getTime() : Number.NaN;
+		const end =
+			Number.isFinite(declaredEnd) && declaredEnd > start
+				? declaredEnd
+				: start + HubCalendarComponent.DEFAULT_TIMED_EVENT_DURATION_MS;
+
+		const from = Math.max(start, rulerStart);
+		const to = Math.min(end, rulerEnd);
+
+		return to > from ? { event, start: from, end: to } : null;
+	}
+
+	/**
 	 * Start time printed in front of a timed event in the month grid, where there is no
 	 * room for an all-day strip and the contrast has to be made the other way round: the
 	 * timed event states its hour, the all-day one has none to state.
@@ -649,7 +806,11 @@ export class HubCalendarComponent<T = any> {
 		}
 
 		const start = new Date(event.start);
-		return this.isSameDay(start, date) ? this.timeFormatter().format(start) : '';
+		if (!this.isSameDay(start, date)) {
+			return '';
+		}
+		const { sharp, split } = this.shortTimeFormatter();
+		return (start.getMinutes() === 0 ? sharp : split).format(start);
 	}
 
 	// =========================================================================
@@ -1023,13 +1184,20 @@ export class HubCalendarComponent<T = any> {
 
 	/**
 	 * Generates the months array for year view.
-	 * Creates 12 month objects with event counts.
-	 * @returns Array of month summary objects
+	 * Creates 12 `CalendarMonth` objects with event counts.
+	 *
+	 * Every field of the public type is filled, `shortName` included: the type is exported and
+	 * `months` is the signal a consumer reads to build its own year layout, so a field left
+	 * `undefined` there is a promise the library breaks silently. It is also the only reader of
+	 * the `monthsShort` dictionary entry, which ships in both bundled languages and which the
+	 * `CALENDAR_I18N` docs ask a new language to supply.
+	 * @returns Array of month summaries for the visible year
 	 */
-	private generateYearMonths(): { date: Date; name: string; eventCount: number }[] {
+	private generateYearMonths(): CalendarMonth[] {
 		const year = this.selectedDate().getFullYear();
 		const months = this.getTranslation('months') || CALENDAR_I18N['en']['months'];
-		const result: { date: Date; name: string; eventCount: number }[] = [];
+		const monthsShort = this.getTranslation('monthsShort') || CALENDAR_I18N['en']['monthsShort'];
+		const result: CalendarMonth[] = [];
 
 		for (let m = 0; m < 12; m++) {
 			const monthDate = new Date(year, m, 1);
@@ -1042,6 +1210,7 @@ export class HubCalendarComponent<T = any> {
 			result.push({
 				date: monthDate,
 				name: months[m],
+				shortName: monthsShort[m],
 				eventCount
 			});
 		}
