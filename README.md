@@ -337,16 +337,128 @@ export class EventHandlingComponent {
 
 ### Inputs
 
-| Input          | Type                 | Default               | Description                                                                                                                                          |
-| -------------- | -------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `events`       | `CalendarEvent[]`    | `[]`                  | Events to display on the calendar                                                                                                                    |
-| `view`         | `CalendarViewType`   | `MONTH`               | Current view type (two-way bindable)                                                                                                                 |
-| `selectedDate` | `Date`               | `new Date()`          | Selected/focused date (two-way bindable)                                                                                                             |
-| `config`       | `CalendarConfig`     | `{}`                  | Configuration options                                                                                                                                |
-| `eventClass`   | `string \| Function` | -                     | CSS class(es) for events                                                                                                                             |
-| `weekStartsOn` | `0-6`                | `config.weekStartsOn` | Day week starts on (0=Sunday); overrides `config.weekStartsOn` when set                                                                              |
-| `locale`       | `string`             | `'en'`                | Language code for translations                                                                                                                       |
-| `variant`      | `string`             | `'primary'`           | Semantic accent: `primary` / `secondary` / `success` / `danger` / `warning` / `info` / `neutral` / `light` / `dark`, or any `--hub-sys-color-*` name |
+| Input               | Type                                                               | Default                                  | Description                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `events`            | `CalendarEvent[]`                                                  | `[]`                                     | Events to display on the calendar                                                                                                                    |
+| `view`              | `CalendarViewType`                                                 | `MONTH`                                  | Current view type (two-way bindable)                                                                                                                 |
+| `selectedDate`      | `Date`                                                             | `new Date()`                             | Selected/focused date (two-way bindable)                                                                                                             |
+| `config`            | `CalendarConfig`                                                   | `{}`                                     | Configuration options                                                                                                                                |
+| `eventClass`        | `string \| Function`                                               | -                                        | CSS class(es) for events                                                                                                                             |
+| `weekStartsOn`      | `0-6`                                                              | `config.weekStartsOn`                    | Day week starts on (0=Sunday); overrides `config.weekStartsOn` when set                                                                              |
+| `locale`            | `string`                                                           | `'en'`                                   | Language code for translations                                                                                                                       |
+| `variant`           | `string`                                                           | `'primary'`                              | Semantic accent: `primary` / `secondary` / `success` / `danger` / `warning` / `info` / `neutral` / `light` / `dark`, or any `--hub-sys-color-*` name |
+| `height`            | `number \| string`                                                 | -                                        | Height of the calendar: a number in pixels, any CSS length, or `auto` to grow instead of scrolling. Unset, it fills its container                    |
+| `displayFormat`     | `Intl.DateTimeFormatOptions \| string \| ((date: Date) => string)` | -                                        | How the header title writes the month and year. The year view keeps its year                                                                         |
+| `timeDisplayFormat` | `Intl.DateTimeFormatOptions`                                       | `{ hour: 'numeric', minute: '2-digit' }` | Clock used in the chip and day tooltips, composed with `hourFormat`                                                                                  |
+| `eventTimeFormat`   | `Intl.DateTimeFormatOptions \| string \| ((date: Date) => string)` | -                                        | Hour a month chip prints; unset it keeps the abbreviation (`9 AM`)                                                                                   |
+| `slotLabelFormat`   | `Intl.DateTimeFormatOptions \| string \| ((date: Date) => string)` | -                                        | Labels down the hour ruler of the week and day views                                                                                                 |
+| `hourFormat`        | `'12' \| '24'`                                                     | -                                        | Forces the clock everywhere; unset, the locale decides                                                                                               |
+| `weekdayFormat`     | `'short' \| 'narrow' \| 'long'`                                    | `'short'`                                | Width of the weekday column headers                                                                                                                  |
+| `monthFormat`       | `'short' \| 'long'`                                                | `'long'`                                 | How the month is written in the header and on the year cards                                                                                         |
+
+### Sizing the calendar
+
+`[height]` is the supported way to give a calendar a size, and it exists because the CSS route is a
+trap. Sizing it from a stylesheet needs an element selector on `hub-calendar`; a scoped one of those
+outranks the component's own `:host` rule, and the `display: block` that so naturally travels beside
+a height unstacks the flex column the internal scrolling is built on — the hour grid then grows to
+its full day instead of scrolling inside the calendar.
+
+```html
+<hub-calendar [events]="events()" [height]="600" />
+<!-- any CSS length works, and `auto` grows to the content and scrolls nothing -->
+<hub-calendar [events]="events()" height="auto" />
+<hub-calendar [events]="events()" [height]="'60vh'" />
+```
+
+With a height set, the scrolling lands where it should: on the hour grid in the week and day views,
+with the day headers and the all-day strip staying put, and on the grid in the month view, under a
+weekday row pinned to the top of it. Left unset, the calendar fills its container exactly as before.
+
+To size every calendar in an application at once, set `--hub-calendar-height` on `:root`; a `[height]`
+on one instance still wins.
+
+### A narrow calendar stacks its header
+
+The header lays out as three tracks — navigation, title, view switcher — with the two extremes sharing
+the free space equally, so the month is centred on the calendar itself rather than on the gap its
+neighbours happen to leave. Below **48rem of calendar width** the three no longer fit on one row, and
+the header stacks: the title takes a row of its own, still centred, and the two button groups take the
+next one. That row wraps in turn, so a four-view switcher that will not fit beside the navigation drops
+below it instead of past the calendar's edge, and a button shortens its own label before anything is cut
+off. The month and the year are never clipped and never split.
+
+The threshold is the **calendar's** width, not the window's — asked with a CSS container query, because
+this component is often placed in a column far narrower than the viewport. That is why the calendar
+declares itself an inline-size container: it takes its width from its container exactly as it always
+has, so if you place it somewhere that sizes to its contents rather than giving it a width, give it one.
+
+### Date and time formats
+
+Every date and time the calendar writes is an option, and **every default is what the calendar has
+always drawn** — nothing changes until you ask it to.
+
+The vocabulary is deliberately `<hub-datepicker>`'s: the same names, the same types, and the same
+resolution order (instance input → application-wide config → built-in default), so a consumer of
+both never learns two names for one idea. Each format is stated the three ways the datepicker
+accepts: `Intl` options, an Angular date pattern, or a function.
+
+| Axis                | What it writes                                                           |
+| ------------------- | ------------------------------------------------------------------------ |
+| `displayFormat`     | the header title; the year view, whose title names a year, is left alone |
+| `timeDisplayFormat` | the clock inside the chip and day tooltips                               |
+| `eventTimeFormat`   | the hour a month-view chip prints in front of a timed event              |
+| `slotLabelFormat`   | the labels down the hour ruler of the week and day views                 |
+| `weekdayFormat`     | the weekday column headers                                               |
+| `monthFormat`       | the month in the header title and on the year view's cards               |
+| `hourFormat`        | 12- or 24-hour, for **every** clock above at once                        |
+
+```html
+<hub-calendar
+	[events]="events()"
+	hourFormat="24"
+	slotLabelFormat="HH:mm"
+	[displayFormat]="{ year: 'numeric', month: 'long' }"
+	weekdayFormat="narrow"
+/>
+```
+
+`hourFormat` left unset means _whatever the reader's language says_ — the same meaning it carries in
+the datepicker, and the answer to whether a tooltip reads `9:00` or `9:00 AM`.
+
+Two of the datepicker's axes are absent on purpose. `parse` and `valueFormat` describe text coming in
+and going out, and this component speaks `Date` at every edge: `CalendarEvent.start` and `end` are
+`Date`, and `eventClick`, `dayClick`, `eventDrop`, `dateChange`, `view` and `selectedDate` all emit
+`Date` or objects carrying one. There is nothing to parse and nothing to serialize. `rangeSeparator`
+is absent for the same reason — the calendar never writes a range as text.
+
+A month chip abbreviates a whole hour to `9 AM` by default and the tooltips spell it out. That is not
+an inconsistency to be settled: the cell is a hundred-odd pixels wide and the hour shares it with a
+dot and a title, while a tooltip line has all the room it needs. `eventTimeFormat` changes the first
+without touching the second.
+
+Accessible names stay out of it: the month grid's label and the weekday column names are spelled out
+whatever `monthFormat` and `weekdayFormat` say, because an abbreviation saves room on screen and a
+name read aloud has none to save.
+
+### Global configuration
+
+State the formats once and every calendar in the application inherits them — the counterpart of
+`provideHubForms()` for `<hub-datepicker>`, with the same shape:
+
+```ts
+bootstrapApplication(App, {
+	providers: [provideHubCalendar({ formats: { hourFormat: '24', weekdayFormat: 'narrow' } })]
+});
+```
+
+An instance that says otherwise still wins, and axes you do not name keep their built-in defaults.
+Nothing has to be bootstrapped for the library to work: `HUB_CALENDAR_CONFIG` falls back to those
+defaults on its own.
+
+> `provideHubCalendar()` is application-wide **presentation**; the `config` input is one calendar's
+> **behaviour** — which views its switcher offers, where its hour ruler starts, whether it draws week
+> numbers. They are different questions and stay separate.
 
 ### Outputs
 

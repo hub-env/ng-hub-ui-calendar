@@ -87,6 +87,98 @@ All notable changes to this project will be documented in this file.
   `--hub-calendar-time-column-width` (`60px`, shared with the hour ruler so the label lines up with
   it) and `--hub-calendar-all-day-min-height` (`2.5rem`).
 
+- **Every date and time the calendar writes is configurable, in the datepicker's own vocabulary.**
+  The formats were hard-coded: the header title, the weekday headers, the hour ruler of the week and
+  day views, the hour a month chip prints and the clocks in both tooltips. Seven inputs now govern
+  them — `displayFormat`, `timeDisplayFormat`, `eventTimeFormat`, `slotLabelFormat`, `hourFormat`,
+  `weekdayFormat` and `monthFormat` — and **every default is exactly what the calendar did before**,
+  so no existing calendar changes appearance.
+
+    The names are not new. `ng-hub-ui-forms` had already solved this for `<hub-datepicker>`, down to
+    the resolution order — instance input, else the application-wide configuration, else the built-in
+    — and a consumer of both should not have to learn a second name for the same idea. Each format is
+    stated the three ways the datepicker accepts them: `Intl` options, an Angular date pattern such as
+    `'HH:mm'`, or a function; a pattern or a function is used exactly as written, never composed with
+    anything.
+
+    `hourFormat: '12' | '24' | undefined` carries the same meaning it carries there, and `undefined`
+    is the interesting value: it means "whatever the reader's language says", which is the answer to
+    whether a tooltip should read `9:00` or `9:00 AM`. It reaches every clock at once.
+
+    Two of the datepicker's axes are deliberately **absent**, and it is worth saying why rather than
+    inventing a surface for them: `parse` and `valueFormat` describe text arriving and text leaving,
+    and this component speaks `Date` at every edge — `CalendarEvent.start` and `end` are `Date`, and
+    `eventClick`, `dayClick`, `eventDrop`, `dateChange`, `view` and `selectedDate` emit `Date` or
+    objects carrying one. There is nothing to parse and nothing to serialize. `rangeSeparator` is
+    absent for the same reason: the calendar never writes a range as text.
+
+    Two axes have no datepicker counterpart because the surfaces are the calendar's own:
+    `slotLabelFormat` for the hour ruler, named as FullCalendar names it, and `eventTimeFormat` for
+    the hour a month chip prints. That one keeps its abbreviation by default — `9 AM` for a whole
+    hour — because a month cell is a hundred-odd pixels wide and the hour shares it with a dot and a
+    title; being configurable is not a reason to level it up to the tooltip's.
+
+    `weekdayFormat` and `monthFormat` read the calendar's own dictionary for the widths it holds, so
+    an application dictionary still reaches them. `narrow` is the exception: there is no such entry,
+    and asking every language for a single letter to add one would be worse than deriving it from the
+    locale, which is where `<hub-datepicker>` takes all of its weekday names.
+
+- **`provideHubCalendar()`, so the formats can be stated once for the whole application.** The
+  calendar had no application-wide configuration at all — `config` has always been about one
+  calendar's behaviour, which views its switcher offers and where its hour ruler starts. This is the
+  counterpart of `provideHubForms()`, with the same shape: an `HUB_CALENDAR_CONFIG` token that falls
+  back to the built-in defaults when nobody provides it, so nothing has to be bootstrapped for the
+  library to work.
+
+- **A `height` input, so a fixed-size calendar needs no stylesheet.** The calendar has always filled
+  its container, and the only way to give it a size was a `hub-calendar { height: … }` rule — which
+  works right up until someone writes `display: block` beside the height, as one naturally does. A
+  scoped element selector outranks the component's own `:host`, so that `display` unstacks the flex
+  column the internal scrolling is built on and the hour grid grows to its full day instead of
+  scrolling inside the calendar. It had already happened in three examples on the documentation site.
+  `[height]` cannot be got wrong that way: a number is read as pixels (`[height]="600"`, and
+  `height="600"` as a plain attribute), any other CSS length passes through (`'32rem'`, `'60vh'`),
+  and `'auto'` grows to the content and scrolls nothing — the spelling and the meaning FullCalendar
+  gives its own `height` option. Left unset, nothing changes. The input writes
+  `--hub-calendar-height` on the host, so the token remains available for theming every calendar at
+  once from `:root`, and the instance still wins.
+
+- **The "+N more" chip shows the day's whole agenda.** It named a number and nothing else, so the
+  only way to find out what was behind it was to open the day. Hovering it now lists every event of
+  that day — the three chips already on screen and the ones the label stands for — one per line. Every
+  event, not only the hidden ones: a list of the leftovers has to be added by eye to what is drawn
+  above it, and seeing the day at a glance is the whole reason to hover the label.
+
+    The list reads as an agenda. An all-day event has no hour to file it under, so its line is named
+    instead — the localized "all day" label and the title — and a timed one goes under a bullet, its
+    clock time and a colon:
+
+    ```text
+    All day: Office Closed
+    - 9:00: Team Meeting
+    - 13:40: Lunch Break
+    ```
+
+    One "all day" line per such event rather than one line listing them all, so every line of the list
+    is one event and the eye can count them; a day with none starts straight at the bullets, with no
+    heading left hanging and no blank line where one would be. The heading is the dictionary's existing
+    `allDay` — the same word the week and day views print in the margin of their all-day strip — so it
+    is already translated, already overridable from an application dictionary, and cannot drift out of
+    step with the strip the way a second key holding the same string would. The hour here is written
+    with its minutes even where the chip abbreviates them away (`9:00`, not `9 AM`): a chip has a month
+    cell's width to fit in, a tooltip line does not, and a list where some entries carry minutes and
+    others do not reads as ragged rather than as brief. It follows `locale` like every other label, so
+    it is 24-hour where the language is. The same list, joined with commas instead of newlines and with
+    the bullets dropped, is the chip's accessible name — a hyphen carries a list on screen and is read
+    out as a stray character or as nothing at all. Google Calendar answers the same question
+    with a popover listing the rest; a tooltip is the modest version of that, and it needs no overlay,
+    no focus trap and no dismissal contract this component does not otherwise have. It is a plain
+    `[hubTooltip]`, not the overflow one: the chip is a short label that always fits, so a tooltip that
+    speaks only while its host is truncated would never speak at all. The same list, joined with commas
+    rather than newlines, is the chip's accessible name, because a hover tooltip is a pointer
+    affordance and this chip is not focusable — `role="note"` is what lets that name be exposed at all,
+    a bare `<span>` being `role="generic"`, which prohibits one.
+
 ### Changed
 
 - **`CalendarEvent.allDay` now decides something.** The flag was declared, documented as displaying
@@ -115,6 +207,60 @@ All notable changes to this project will be documented in this file.
   `--all-day`, so the two can be dressed apart from a consumer stylesheet. See `BREAKING_CHANGES.md`:
   the default look of a timed chip in the month view changes, and that is every chip most calendars
   draw.
+
+- **The header is three tracks, and the title is centred on the calendar.** It was the middle child of
+  a `space-between` flex row, so it was centred on whatever gap the navigation and the view switcher
+  happened to leave between them. Those two are never the same width, so the title always leaned
+  towards the narrower one and in a tight header it touched it — "September 2026" sat against the
+  month button on the documentation site. The two `1fr` extremes now share the free space equally, so
+  the middle track lands on the centre of the calendar with one view button or with four, and
+  `--hub-calendar-header-gap` (`var(--hub-ref-space-3, 1rem)`) is the floor on the distance to either
+  side.
+
+- **The header stacks when the three pieces no longer fit on one row.** Below `48rem` of **calendar**
+  width — the calendar's own, asked with a container query, because this component often sits in a
+  column far narrower than the window and a media query would answer about the window — the title
+  takes a row of its own, still centred, and the two groups take the next one. That row wraps too, so
+  a four-view switcher that will not fit beside the navigation drops below it rather than past the
+  calendar's edge, and a button shortens its own label before anything is cut off by that edge. The
+  month and the year are never clipped and never split: if "September 2026" does not fit beside the
+  buttons, it is the row that breaks, not the title. Declaring the calendar an inline-size container
+  is what makes the threshold its own — it still takes its width from its container exactly as
+  before, so give it a width if you place it somewhere that sizes to its contents.
+
+- **Both header clusters are drawn as one joined control.** "◀ / Today / ▶" and the view switcher were
+  loose rows of buttons with a gap between them; they read as one control each now, the way an input
+  group does — no gaps, one shared border between neighbours instead of two stacked into a seam, and
+  rounded corners only at the two ends. The radii are logical, so a right-to-left calendar rounds the
+  end the reader sees as last with no mirrored rule, and the active button and the focused one are
+  lifted above the neighbour that would otherwise draw its border over theirs. Buttons also gained an
+  explicit focus ring, drawn inward like every other ring in the sheet so the button beside them
+  cannot clip it.
+
+- **The month chip reads dot · title · hour, in smaller type, in a tighter cell.** The hour used to
+  come first, which pushed the title into whatever was left; Apple Calendar puts it at the far end of
+  the row, and that is what the chip does now. The hour keeps its width whatever happens beside it,
+  so the title is the only piece that is ever clipped — an all-day event has neither dot nor hour, so
+  it is a title alone and the order leaves it no hole to fall into. Two defaults move with the shape:
+  `--hub-calendar-event-font-size` drops from `--hub-ref-font-size-sm` to `--hub-ref-font-size-xs`,
+  well under the day number beside it, and `--hub-calendar-day-padding-x` / `-y` drop from
+  `--hub-ref-space-2` to `--hub-ref-space-1`, so a cell holds more. The hour has its own size,
+  `--hub-calendar-event-time-font-size` (`0.9em`), relative on purpose: re-scale the chip and the hour
+  keeps its proportion instead of catching the title up. The order is deliberately **not** carried
+  into the week and day views — an event there is placed against the hour ruler, so its position
+  already states the time and the chip prints none. See `BREAKING_CHANGES.md`.
+
+- **The month view keeps its weekday row in place while the grid scrolls.** The row scrolled away with
+  the weeks, which in a calendar given a fixed height meant the columns lost their headings as soon as
+  the month was longer than the box. It is sticky inside the same scroller rather than lifted out of
+  it, which is what keeps the seven headers on the seven columns they label.
+
+- **An event chip's tooltip says the whole row, not just the title.** It carried `event.title` alone;
+  it now carries the title and the hour, the two pieces the chip shows, because the hour is exactly
+  what a narrow cell squeezes out from beside the title. An all-day event has no hour, so its tooltip
+  is the title with no separator left dangling behind it. The week and day views get the same line
+  even though their chips print no hour: the tooltip is read on its own, and two events that share a
+  title are told apart by nothing else.
 
 ### Fixed
 
@@ -154,6 +300,26 @@ All notable changes to this project will be documented in this file.
   (component token → sys token → ref token → literal), and the derived accent roles now resolve at
   the point of use, so re-basing `--hub-calendar-accent` alone moves the today tint, the selected day
   and the chips with it. Rendering is unchanged; what changes is who wins. See `BREAKING_CHANGES.md`.
+
+- **A timed chip shows its overflow tooltip again.** The tooltip was measured on the chip, which
+  worked while a chip was a plain block whose own box did the clipping and stopped working the moment
+  the timed chip became a flex row: a flex child that clips its own text never lets the overflow reach
+  its parent, so the chip reported no truncation and quietly retired its own tooltip. All-day chips,
+  still plain blocks, kept theirs — a calendar where the tooltip worked on some chips and not others.
+  Truncation is now measured on `.hub-calendar__event-title`, the one box that actually clips, in
+  every chip shape and in all three views; the title is a block for the same reason, an inline element
+  clipping nothing and reporting both widths as zero.
+
+    The tooltip itself belongs to the **whole chip**, which is one control and says so with
+    `role="button"`, and the chip's parts are inert to the pointer (`pointer-events: none` on the
+    dot, the hour, the title and the day-view content wrapper). Attaching the listener to the chip was
+    not enough on its own: hit-testing resolves to whichever span the pointer happens to be over, and
+    a control that answers in part of its own area and not the rest is worse than one that never
+    answers — hovering the hour of a month chip produced nothing while the dot and the title beside it
+    produced the label. Every point inside a chip now resolves to the chip. Splitting the two — the chip is hovered, the title is measured — is what
+    `hubOverflowTooltipMeasure` is for, added to `[hubOverflowTooltip]` in `ng-hub-ui-utils` 22.13.0,
+    which the calendar now requires. A chip whose content comes from a custom `eventTpt` has no title
+    for the selector to find, so it falls back to measuring the chip, exactly as before.
 
 ### Removed
 

@@ -1,6 +1,6 @@
 <!-- Header -->
 <div class="hub-calendar__header">
-	<div class="hub-calendar__nav">
+	<div class="hub-calendar__nav hub-calendar__btn-group">
 		<button
 			type="button"
 			class="hub-calendar__btn hub-calendar__btn--nav"
@@ -22,18 +22,9 @@
 		</button>
 	</div>
 
-	<h2 class="hub-calendar__title" aria-live="polite">
-		@switch (view()) {
-			@case ('year') {
-				{{ currentYear() }}
-			}
-			@default {
-				{{ currentMonthName() }} {{ currentYear() }}
-			}
-		}
-	</h2>
+	<h2 class="hub-calendar__title" aria-live="polite">{{ headerTitle() }}</h2>
 
-	<div class="hub-calendar__views">
+	<div class="hub-calendar__views hub-calendar__btn-group">
 		@for (v of mergedConfig().availableViews; track v) {
 			<button
 				type="button"
@@ -99,7 +90,7 @@
 							} @else {
 								<span class="hub-calendar__day-number">{{ day.date | date: 'd' }}</span>
 								<div class="hub-calendar__events">
-									@for (event of day.events.slice(0, 3); track event.id || $index) {
+									@for (event of day.events.slice(0, monthCellEventLimit); track event.id || $index) {
 										<div
 											class="hub-calendar__event"
 											role="button"
@@ -108,7 +99,8 @@
 											[class.hub-calendar__event--all-day]="!!event.allDay"
 											[class.hub-calendar__event--timed]="!event.allDay"
 											[attr.aria-label]="getEventAriaLabel(event)"
-											[hubOverflowTooltip]="event.title"
+											[hubOverflowTooltip]="getEventTooltip(event, day.date)"
+											hubOverflowTooltipMeasure=".hub-calendar__event-title"
 											[attr.draggable]="mergedConfig().dragAndDropEnabled"
 											(click)="onEventClick(event, $event)"
 											(keydown)="onEventKeydown(event, $event)"
@@ -123,15 +115,21 @@
 												@if (!event.allDay) {
 													<span class="hub-calendar__event-dot" aria-hidden="true"></span>
 												}
+												<span class="hub-calendar__event-title">{{ event.title }}</span>
 												@if (getEventTime(event, day.date); as time) {
 													<span class="hub-calendar__event-time">{{ time }}</span>
 												}
-												<span class="hub-calendar__event-title">{{ event.title }}</span>
 											}
 										</div>
 									}
-									@if (day.events.length > 3) {
-										<span class="hub-calendar__more">{{ getMoreEventsLabel(day.events.length - 3) }}</span>
+									@if (day.events.length > monthCellEventLimit) {
+										<span
+											class="hub-calendar__more"
+											role="note"
+											[attr.aria-label]="getDayEventsLabel(day)"
+											[hubTooltip]="getDayEventsTooltip(day)"
+											>{{ getMoreEventsLabel(day.events.length - monthCellEventLimit) }}</span
+										>
 									}
 								</div>
 							}
@@ -172,7 +170,8 @@
 							tabindex="0"
 							[class]="getEventClass(event)"
 							[attr.aria-label]="getEventAriaLabel(event)"
-							[hubOverflowTooltip]="event.title"
+							[hubOverflowTooltip]="getEventTooltip(event, day.date)"
+							hubOverflowTooltipMeasure=".hub-calendar__event-title"
 							[attr.draggable]="mergedConfig().dragAndDropEnabled"
 							(click)="onEventClick(event, $event)"
 							(keydown)="onEventKeydown(event, $event)"
@@ -192,7 +191,7 @@
 		<div class="hub-calendar__time-grid" [style.--hub-calendar-grid-hours]="hours().length">
 			<div class="hub-calendar__time-column">
 				@for (hour of hours(); track hour) {
-					<div class="hub-calendar__time-slot">{{ hour }}:00</div>
+					<div class="hub-calendar__time-slot">{{ getSlotLabel(hour) }}</div>
 				}
 			</div>
 			@for (day of weekDays(); track day.date.getTime()) {
@@ -217,7 +216,8 @@
 								[style.left.%]="placement.left"
 								[style.right.%]="placement.right"
 								[attr.aria-label]="getEventAriaLabel(placement.event)"
-								[hubOverflowTooltip]="placement.event.title"
+								[hubOverflowTooltip]="getEventTooltip(placement.event, day.date)"
+								hubOverflowTooltipMeasure=".hub-calendar__event-title"
 								[attr.draggable]="mergedConfig().dragAndDropEnabled"
 								(click)="onEventClick(placement.event, $event)"
 								(keydown)="onEventKeydown(placement.event, $event)"
@@ -262,7 +262,8 @@
 						tabindex="0"
 						[class]="getEventClass(event)"
 						[attr.aria-label]="getEventAriaLabel(event)"
-						[hubOverflowTooltip]="event.title"
+						[hubOverflowTooltip]="getEventTooltip(event, currentDay().date)"
+						hubOverflowTooltipMeasure=".hub-calendar__event-title"
 						[attr.draggable]="mergedConfig().dragAndDropEnabled"
 						(click)="onEventClick(event, $event)"
 						(keydown)="onEventKeydown(event, $event)"
@@ -286,7 +287,7 @@
 		<div class="hub-calendar__time-grid" [style.--hub-calendar-grid-hours]="hours().length">
 			<div class="hub-calendar__time-column">
 				@for (hour of hours(); track hour) {
-					<div class="hub-calendar__time-slot">{{ hour }}:00</div>
+					<div class="hub-calendar__time-slot">{{ getSlotLabel(hour) }}</div>
 				}
 			</div>
 			<div
@@ -308,7 +309,8 @@
 							[style.left.%]="placement.left"
 							[style.right.%]="placement.right"
 							[attr.aria-label]="getEventAriaLabel(placement.event)"
-							[hubOverflowTooltip]="placement.event.title"
+							[hubOverflowTooltip]="getEventTooltip(placement.event, currentDay().date)"
+							hubOverflowTooltipMeasure=".hub-calendar__event-title"
 							[attr.draggable]="mergedConfig().dragAndDropEnabled"
 							(click)="onEventClick(placement.event, $event)"
 							(keydown)="onEventKeydown(placement.event, $event)"
@@ -348,7 +350,7 @@
 					(click)="onMonthClick(month.date)"
 					(keydown)="onMonthKeydown(month.date, $event)"
 				>
-					<span class="hub-calendar__month-name">{{ month.name }}</span>
+					<span class="hub-calendar__month-name">{{ getMonthCardLabel(month) }}</span>
 					@if (month.eventCount > 0) {
 						<span class="hub-calendar__month-events">{{ getEventCountLabel(month.eventCount) }}</span>
 					}

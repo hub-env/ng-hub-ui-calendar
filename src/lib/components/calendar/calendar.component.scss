@@ -43,6 +43,10 @@ $primary: var(--hub-calendar-primary, #{$accent});
 $header-bg: var(--hub-calendar-header-bg, var(--hub-sys-surface-elevated, #f8f9fa));
 $header-padding-x: var(--hub-calendar-header-padding-x, var(--hub-ref-space-3, 1rem));
 $header-padding-y: var(--hub-calendar-header-padding-y, var(--hub-ref-space-3, 1rem));
+// Floor on the distance between the title and either group beside it. It is a gutter, not
+// a suggestion: the title track is what gives when the header runs out of room, so this is
+// what keeps "September 2026" off the month button in a narrow calendar.
+$header-gap: var(--hub-calendar-header-gap, var(--hub-ref-space-3, 1rem));
 
 // Buttons (nav / today / view switcher)
 $btn-bg: var(--hub-calendar-btn-bg, var(--hub-ref-color-white, #ffffff));
@@ -56,8 +60,8 @@ $btn-active-bg: var(--hub-calendar-btn-active-bg, #{$accent});
 $btn-active-color: var(--hub-calendar-btn-active-color, #{$accent-on});
 
 // Day cells (month grid)
-$day-padding-x: var(--hub-calendar-day-padding-x, var(--hub-ref-space-2, 0.5rem));
-$day-padding-y: var(--hub-calendar-day-padding-y, var(--hub-ref-space-2, 0.5rem));
+$day-padding-x: var(--hub-calendar-day-padding-x, var(--hub-ref-space-1, 0.25rem));
+$day-padding-y: var(--hub-calendar-day-padding-y, var(--hub-ref-space-1, 0.25rem));
 $day-min-height: var(--hub-calendar-day-min-height, 80px);
 $day-hover-bg: var(--hub-calendar-day-hover-bg, var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075)));
 $day-today-bg: var(--hub-calendar-day-today-bg, color-mix(in oklch, #{$accent} 8%, var(--hub-calendar-bg, #fff)));
@@ -73,7 +77,10 @@ $event-color: var(--hub-calendar-event-color, #{$accent-on});
 $event-border-radius: var(--hub-calendar-event-border-radius, var(--hub-ref-radius-sm, 0.25rem));
 $event-padding-x: var(--hub-calendar-event-padding-x, var(--hub-ref-space-2, 0.5rem));
 $event-padding-y: var(--hub-calendar-event-padding-y, var(--hub-ref-space-1, 0.25rem));
-$event-font-size: var(--hub-calendar-event-font-size, var(--hub-ref-font-size-sm, 0.875rem));
+$event-font-size: var(--hub-calendar-event-font-size, var(--hub-ref-font-size-xs, 0.75rem));
+// The hour, one notch under the title it sits beside. Relative on purpose: re-scale the chip
+// and the hour keeps its proportion instead of catching the title up.
+$event-time-font-size: var(--hub-calendar-event-time-font-size, 0.9em);
 
 // Year-view month cards
 $month-card-bg: var(--hub-calendar-month-card-bg, var(--hub-sys-surface-elevated, #f8f9fa));
@@ -94,16 +101,31 @@ $event-gutter: var(--hub-calendar-event-gutter, 2px);
 // the default full day, so the sheet still resolves on its own.
 $grid-height: calc(#{$hour-height} * var(--hub-calendar-grid-hours, 24));
 
+// How tall the calendar is, and therefore whether it scrolls or grows. The `height` input
+// writes this token on the host, so a consumer states a size without opening a stylesheet —
+// which is the point: the CSS route needs an element selector on `hub-calendar`, a scoped
+// one of those outranks this sheet's own `:host`, and a `display` slipped in beside the
+// height silently unstacks the flex column the scrolling depends on. The fallback is the
+// behaviour the component has always had: fill whatever the container gives it.
+$height: var(--hub-calendar-height, 100%);
+
 :host {
 	display: flex;
 	flex-direction: column;
-	height: 100%;
+	height: #{$height};
 	font-family: #{$font-family};
 	background: #{$bg};
 	color: #{$color};
 	border-radius: #{$border-radius};
 	border: 1px solid #{$border-color};
 	overflow: hidden;
+
+	// The header stacks when the room runs out, and the room that decides it is the
+	// CALENDAR's, not the window's: this component often lives in a column far narrower than
+	// the viewport — the examples page is exactly that — so a media query would answer the
+	// wrong question. Naming the host as an inline-size container is what lets the header ask
+	// how wide the calendar itself is.
+	container: hub-calendar / inline-size;
 
 	// The accent's fourth role. The calendar paints nothing with it — it is a hook for a
 	// consumer dressing the grid, declared here so it exists to be read, and derived from
@@ -112,29 +134,123 @@ $grid-height: calc(#{$hour-height} * var(--hub-calendar-grid-hours, 24));
 }
 
 .hub-calendar {
+	// Three tracks, not a flex row: `space-between` centred the title on the gap its two
+	// neighbours happened to leave, so a wide view switcher pushed it against the navigation
+	// and in a narrow calendar it touched. The two `1fr` extremes share the free space
+	// equally whatever they hold, which puts the middle track — and so the title — on the
+	// centre of the calendar itself, with one view button or with four.
 	&__header {
-		display: flex;
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
 		align-items: center;
-		justify-content: space-between;
+		gap: #{$header-gap};
 		padding: #{$header-padding-y} #{$header-padding-x};
 		border-bottom: 1px solid #{$border-color};
 		background: #{$header-bg};
 	}
 
 	&__nav {
-		display: flex;
-		gap: var(--hub-ref-space-2, 0.5rem);
+		justify-self: start;
+		// A floor of nothing, and it is the whole priority rule of this header written once:
+		// while there is room to spare it changes no track, and when there is none it is the
+		// button groups that give — never the month, which the calendar must always show in
+		// full. Without it a grid track cannot shrink under its content, so the middle track
+		// was squeezed to zero instead and the month vanished outright.
+		min-width: 0;
 	}
 
 	&__title {
+		// Stretched across the middle track and centred inside it, so the text is centred on
+		// the calendar itself rather than on the gap its neighbours happen to leave. It is
+		// never clipped and never split: `nowrap` keeps "September 2026" on one line, and
+		// when that line no longer fits beside the two groups it is the header that breaks
+		// into rows, not the title.
 		margin: 0;
+		text-align: center;
+		white-space: nowrap;
 		font-size: var(--hub-ref-font-size-lg, 1.25rem);
 		font-weight: var(--hub-ref-font-weight-semibold, 600);
 	}
 
 	&__views {
+		justify-self: end;
+		min-width: 0;
+	}
+
+	// Below this the three pieces cannot share a row without something being cut. The header
+	// stacks instead: the title on a row of its own, still centred on the calendar, and the
+	// two groups on the next one. `wrap` rather than a second fixed grid, so a switcher that
+	// still does not fit beside the navigation drops below it instead of past the calendar's
+	// edge. The threshold is the widest the three have ever needed together — the navigation,
+	// the longest bundled month name and a four-view switcher — with room for a language
+	// whose labels run longer than English's.
+	@container hub-calendar (max-width: 48rem) {
+		&__header {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: space-between;
+		}
+
+		&__title {
+			// Its own full-width row, and first: the month and the year are the one thing this
+			// header must never lose. Alone on that row it squeezes nothing, so here it may
+			// wrap — a calendar too narrow even for the month name gets it on two lines rather
+			// than not at all.
+			order: -1;
+			flex: 1 0 100%;
+			white-space: normal;
+		}
+
+		&__nav,
+		&__views {
+			flex: 0 1 auto;
+		}
+	}
+
+	// Both header clusters read as one control, the way an input group does: no gaps, one
+	// shared border between neighbours, and rounded corners only at the two ends. The
+	// radii are LOGICAL, so a right-to-left calendar rounds the end the reader sees as
+	// last without a mirrored rule.
+	&__btn-group {
 		display: flex;
-		gap: var(--hub-ref-space-1, 0.25rem);
+		align-items: stretch;
+
+		.hub-calendar__btn {
+			// Stacking context per button, so the raised ones below can cover a neighbour's
+			// border instead of being covered by it.
+			position: relative;
+			border-radius: 0;
+
+			&:first-child {
+				border-start-start-radius: #{$btn-border-radius};
+				border-end-start-radius: #{$btn-border-radius};
+			}
+
+			&:last-child {
+				border-start-end-radius: #{$btn-border-radius};
+				border-end-end-radius: #{$btn-border-radius};
+			}
+
+			// The active button paints its border in the accent, and the next button's own
+			// border is drawn on top of it by document order — so the state that most needs
+			// an outline is the one that loses it. Hover is raised for the same reason.
+			&:hover,
+			&.hub-calendar__btn--active {
+				z-index: 1;
+			}
+
+			// Above even the active one: a focus ring cut in half by the neighbour is a focus
+			// ring the keyboard user cannot trust.
+			&:focus-visible {
+				z-index: 2;
+			}
+		}
+
+		// The shared border: the two 1px borders would otherwise stack into a 2px seam that
+		// no other edge of the group has.
+		.hub-calendar__btn + .hub-calendar__btn {
+			margin-inline-start: -1px;
+		}
 	}
 
 	&__btn {
@@ -146,9 +262,24 @@ $grid-height: calc(#{$hour-height} * var(--hub-calendar-grid-hours, 24));
 		cursor: pointer;
 		font-size: var(--hub-ref-font-size-base, 1rem);
 		transition: #{$transition};
+		// The last thing to give, and it gives inside its own box. A four-view switcher is
+		// wider than a very narrow calendar even with a row to itself, and a button cut off
+		// by the calendar's edge reads as a broken layout; a label shortened by a character
+		// or two reads as a tight one. Costs nothing wherever there is room.
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
 
 		&:hover {
 			background: #{$btn-hover-bg};
+		}
+
+		// Drawn inward, like every other focus ring in this sheet, so the ring stays inside
+		// the button's own box and cannot be clipped by the neighbour it is joined to.
+		&:focus-visible {
+			outline: 2px solid #{$accent};
+			outline-offset: -2px;
 		}
 
 		&--active {
@@ -173,7 +304,13 @@ $grid-height: calc(#{$hour-height} * var(--hub-calendar-grid-hours, 24));
 		overflow: auto;
 	}
 
+	// Pinned to the top of the month view's scroll box rather than lifted out of it: the
+	// weekday names have to stay put while the weeks scroll, and sharing the scroller with
+	// the grid is what keeps the seven headers on the seven columns they label.
 	&__weekdays {
+		position: sticky;
+		top: 0;
+		z-index: 1;
 		display: grid;
 		grid-template-columns: repeat(7, 1fr);
 		border-bottom: 1px solid #{$border-color};
@@ -350,10 +487,10 @@ $grid-height: calc(#{$hour-height} * var(--hub-calendar-grid-hours, 24));
 		// filled bars left standing are the all-day ones. The month grid has no room for
 		// the all-day strip the week and day views use, so the contrast is made the other
 		// way round — which is the arrangement every calendar the reader already knows uses.
-		// The dot and the hour stay INLINE rather than turning the chip into a flex row:
-		// the overflow tooltip measures `scrollWidth` on the chip itself, and a flex child
-		// clipping its own text would hide the overflow from it, silently retiring the
-		// tooltip on every timed chip.
+		//
+		// The row reads dot · title · hour, with the hour at the far end, as Apple Calendar
+		// lays it out. An all-day chip has neither dot nor hour, so it is a title alone and
+		// the order leaves it no hole to fall into.
 		&--timed {
 			background: transparent;
 			color: inherit;
@@ -364,6 +501,19 @@ $grid-height: calc(#{$hour-height} * var(--hub-calendar-grid-hours, 24));
 		}
 	}
 
+	// The chip is one control — it says so with `role="button"` — so its parts are parts, not
+	// targets. Hit-testing resolves every point inside the chip to the chip itself, which is
+	// what makes the tooltip listening there reachable over the hour and the dot as surely as
+	// over the title. Without it the pointer lands on whichever span it happens to be over,
+	// and a control answers in some of its own area and not the rest.
+	&__event-dot,
+	&__event-time,
+	&__event-title,
+	&__event-content,
+	&__event-desc {
+		pointer-events: none;
+	}
+
 	&__event-dot {
 		flex: 0 0 auto;
 		width: 0.5rem;
@@ -372,17 +522,35 @@ $grid-height: calc(#{$hour-height} * var(--hub-calendar-grid-hours, 24));
 		background: #{$event-bg};
 	}
 
+	// Pinned to the end of the chip and never given up: the hour is what tells a timed event
+	// from an all-day one, so when the room runs out the title is the half that yields. It is
+	// the flex layout that puts it at the end, so a right-to-left calendar moves it to the
+	// other side without a mirrored rule.
 	&__event-time {
 		flex: 0 0 auto;
 		color: #{$muted};
+		font-size: #{$event-time-font-size};
 		font-variant-numeric: tabular-nums;
 	}
 
+	// The one box in a chip that clips text, in every chip shape, and therefore the one the
+	// overflow tooltip is measured on. It has to be a block: an inline element clips nothing
+	// and reports `scrollWidth` and `clientWidth` as zero, so the tooltip would never fire.
+	//
+	// This is what the timed chip broke by becoming a flex row. The tooltip used to be
+	// measured on the chip, and a flex child that clips its own text hides the overflow from
+	// its parent — so every timed chip silently lost its tooltip while the all-day ones,
+	// still plain blocks, kept theirs. Measuring where the text is actually cut fixes it for
+	// both, and for the week and day views alike.
 	&__event-title {
 		// The only part that gives. A month cell is narrow, and the hour is the half that
 		// distinguishes a timed event from an all-day one, so the title is what gets clipped.
+		display: block;
+		// Takes the room the hour does not need, and is the only piece that gives it back.
+		flex: 1 1 auto;
 		min-width: 0;
 		overflow: hidden;
+		white-space: nowrap;
 		text-overflow: ellipsis;
 		font-weight: var(--hub-ref-font-weight-medium, 500);
 	}
@@ -402,6 +570,15 @@ $grid-height: calc(#{$hour-height} * var(--hub-calendar-grid-hours, 24));
 		font-size: var(--hub-ref-font-size-xs, 0.75rem);
 		color: #{$muted};
 		text-align: center;
+
+		// Its tooltip lists the hidden events one per line. The bubble is portaled to
+		// `<body>`, out of reach of any rule of ours, so the only way to ask for a per-tooltip
+		// setting is to declare it here: the directive resolves the tooltip's own custom
+		// properties on the host and copies them onto the bubble. `pre-line` keeps the line
+		// breaks and still wraps a long title; the list reads as a list, so it is aligned to
+		// the start rather than centred like a one-line label.
+		--hub-tooltip-white-space: pre-line;
+		--hub-tooltip-text-align: start;
 	}
 
 	&__week-view,

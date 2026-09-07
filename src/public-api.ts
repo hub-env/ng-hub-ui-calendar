@@ -16,5 +16,13 @@ export type { CalendarEvent, CalendarEventPlacement } from './lib/models/calenda
 export { CalendarViewType, DEFAULT_CALENDAR_CONFIG } from './lib/models/calendar-view';
 export type { CalendarConfig } from './lib/models/calendar-view';
 
+// Formats
+export { defaultHubCalendarFormats, resolveCalendarHour12 } from './lib/models/calendar-format';
+export type { HubCalendarDateFormat, HubCalendarFormats } from './lib/models/calendar-format';
+
+// Global configuration
+export { defaultHubCalendarConfig, HUB_CALENDAR_CONFIG, provideHubCalendar } from './lib/services/calendar-config';
+export type { HubCalendarConfig, HubCalendarConfigOverride } from './lib/services/calendar-config';
+
 // i18n
 export { CALENDAR_I18N } from './lib/i18n/calendar-i18n';

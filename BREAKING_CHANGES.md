@@ -40,6 +40,48 @@ const config: CalendarConfig = { dayStartHour: 8 };
 // <hub-calendar [view]="CalendarViewType.WEEK" [config]="config" (dayClick)="createEvent($event)" />
 ```
 
+### Changed: the month chip's shape, and two token defaults with it
+
+- **Change**: a month-view timed chip now reads dot · title · hour, with the hour at the end of the
+  row instead of in front of the title. `--hub-calendar-event-font-size` drops from
+  `var(--hub-ref-font-size-sm, 0.875rem)` to `var(--hub-ref-font-size-xs, 0.75rem)`, and
+  `--hub-calendar-day-padding-x` / `-y` drop from `var(--hub-ref-space-2, 0.5rem)` to
+  `var(--hub-ref-space-1, 0.25rem)`.
+- **Why it is worth saying plainly**: nothing stops compiling, so the only notice is here. Every
+  month grid gets visibly denser and every timed chip changes the order of its parts. If you were
+  sizing a layout around the old cell padding, or writing a rule that leant on the hour coming first
+  (`.hub-calendar__event-time + .hub-calendar__event-title`, say), it is this release that moves it.
+- **Impact**: visual, and DOM order inside a timed chip. The classes themselves are unchanged.
+- **Migration**: none needed to keep working. To keep the old look, set the tokens back — they are
+  what they are for:
+
+```scss
+hub-calendar {
+	--hub-calendar-event-font-size: var(--hub-ref-font-size-sm, 0.875rem);
+	--hub-calendar-day-padding-x: var(--hub-ref-space-2, 0.5rem);
+	--hub-calendar-day-padding-y: var(--hub-ref-space-2, 0.5rem);
+}
+```
+
+The order of the parts is not a token; it is the shape of the chip. A consumer who needs the old one
+back owns it through `eventTpt`, which replaces the chip's content entirely.
+
+### Changed: the overflow tooltip is measured on the title, not on the chip
+
+- **Change**: `[hubOverflowTooltip]` still sits on `.hub-calendar__event`, so the hover area is the
+  whole chip as before, but what decides whether it speaks is now the truncation of
+  `.hub-calendar__event-title` inside it — through `hubOverflowTooltipMeasure`, added to the
+  directive in `ng-hub-ui-utils` 22.13.0. The text it announces is the chip's whole row, the title
+  and the hour, rather than the title alone.
+- **Why it is worth saying plainly**: nothing stops compiling, and for the default rendering this is
+  purely a repair — the tooltip had stopped appearing on every timed chip. What is worth knowing is
+  the new floor on the peer dependency.
+- **Impact**: `ng-hub-ui-calendar` now requires `ng-hub-ui-utils >= 22.13.0`. On an older utils the
+  extra attribute is simply not an input of the directive and the build fails on the template.
+  A chip whose content comes from a custom `eventTpt` has no `.hub-calendar__event-title` for the
+  selector to find, so it falls back to measuring the chip — the behaviour it had before 22.7.0.
+- **Migration**: update `ng-hub-ui-utils`.
+
 ### Changed: the week and day hour grids place their events
 
 - **Change**: a timed event is no longer a chip stacked at the top of its day column. It is a band

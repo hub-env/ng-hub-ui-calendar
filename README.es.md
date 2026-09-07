@@ -330,16 +330,133 @@ export class EventHandlingComponent {
 
 ### Inputs
 
-| Input          | Tipo                 | Por Defecto           | Descripción                                                                                                                                                  |
-| -------------- | -------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `events`       | `CalendarEvent[]`    | `[]`                  | Eventos a mostrar en el calendario                                                                                                                           |
-| `view`         | `CalendarViewType`   | `MONTH`               | Tipo de vista actual (enlazable en dos direcciones)                                                                                                          |
-| `selectedDate` | `Date`               | `new Date()`          | Fecha seleccionada/foco (enlazable en dos direcciones)                                                                                                       |
-| `config`       | `CalendarConfig`     | `{}`                  | Opciones de configuración                                                                                                                                    |
-| `eventClass`   | `string \| Function` | -                     | Clase(s) CSS para eventos                                                                                                                                    |
-| `weekStartsOn` | `0-6`                | `config.weekStartsOn` | Día en que comienza la semana (0=Domingo); prevalece sobre `config.weekStartsOn` cuando se indica                                                            |
-| `locale`       | `string`             | `'en'`                | Código de idioma para traducciones                                                                                                                           |
-| `variant`      | `string`             | `'primary'`           | Acento semántico: `primary` / `secondary` / `success` / `danger` / `warning` / `info` / `neutral` / `light` / `dark`, o cualquier nombre `--hub-sys-color-*` |
+| Input               | Tipo                                                               | Por Defecto                              | Descripción                                                                                                                                                  |
+| ------------------- | ------------------------------------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `events`            | `CalendarEvent[]`                                                  | `[]`                                     | Eventos a mostrar en el calendario                                                                                                                           |
+| `view`              | `CalendarViewType`                                                 | `MONTH`                                  | Tipo de vista actual (enlazable en dos direcciones)                                                                                                          |
+| `selectedDate`      | `Date`                                                             | `new Date()`                             | Fecha seleccionada/foco (enlazable en dos direcciones)                                                                                                       |
+| `config`            | `CalendarConfig`                                                   | `{}`                                     | Opciones de configuración                                                                                                                                    |
+| `eventClass`        | `string \| Function`                                               | -                                        | Clase(s) CSS para eventos                                                                                                                                    |
+| `weekStartsOn`      | `0-6`                                                              | `config.weekStartsOn`                    | Día en que comienza la semana (0=Domingo); prevalece sobre `config.weekStartsOn` cuando se indica                                                            |
+| `locale`            | `string`                                                           | `'en'`                                   | Código de idioma para traducciones                                                                                                                           |
+| `variant`           | `string`                                                           | `'primary'`                              | Acento semántico: `primary` / `secondary` / `success` / `danger` / `warning` / `info` / `neutral` / `light` / `dark`, o cualquier nombre `--hub-sys-color-*` |
+| `height`            | `number \| string`                                                 | -                                        | Alto del calendario: un número en píxeles, cualquier longitud CSS o `auto` para crecer en lugar de desplazarse. Sin valor, ocupa su contenedor               |
+| `displayFormat`     | `Intl.DateTimeFormatOptions \| string \| ((date: Date) => string)` | -                                        | Cómo escribe el título de la cabecera el mes y el año. La vista de año conserva su año                                                                       |
+| `timeDisplayFormat` | `Intl.DateTimeFormatOptions`                                       | `{ hour: 'numeric', minute: '2-digit' }` | Reloj de los tooltips del chip y del día, compuesto con `hourFormat`                                                                                         |
+| `eventTimeFormat`   | `Intl.DateTimeFormatOptions \| string \| ((date: Date) => string)` | -                                        | Hora que imprime un chip de mes; sin valor conserva la abreviatura (`9 AM`)                                                                                  |
+| `slotLabelFormat`   | `Intl.DateTimeFormatOptions \| string \| ((date: Date) => string)` | -                                        | Etiquetas de la regla de horas de las vistas de semana y día                                                                                                 |
+| `hourFormat`        | `'12' \| '24'`                                                     | -                                        | Fuerza el reloj en todas partes; sin valor decide el idioma                                                                                                  |
+| `weekdayFormat`     | `'short' \| 'narrow' \| 'long'`                                    | `'short'`                                | Ancho de las cabeceras de días de la semana                                                                                                                  |
+| `monthFormat`       | `'short' \| 'long'`                                                | `'long'`                                 | Cómo se escribe el mes en la cabecera y en las tarjetas de año                                                                                               |
+
+### Cómo fijar el alto del calendario
+
+`[height]` es la forma admitida de darle un tamaño, y existe porque la vía del CSS es una trampa.
+Dimensionarlo desde una hoja de estilos exige un selector de elemento sobre `hub-calendar`; uno de
+esos con ámbito gana a la propia regla `:host` del componente, y el `display: block` que tan
+naturalmente acompaña a un alto desmonta la columna flex sobre la que se apoya el desplazamiento
+interno: la rejilla de horas crece entonces hasta el día entero en vez de desplazarse dentro del
+calendario.
+
+```html
+<hub-calendar [events]="events()" [height]="600" />
+<!-- vale cualquier longitud CSS, y `auto` crece con el contenido y no desplaza nada -->
+<hub-calendar [events]="events()" height="auto" />
+<hub-calendar [events]="events()" [height]="'60vh'" />
+```
+
+Con un alto fijado, el desplazamiento cae donde debe: en la rejilla de horas en las vistas de semana
+y día, con la cabecera de días y la franja de todo el día quietas, y en la parrilla en la vista de
+mes, bajo una fila de días de la semana anclada a su parte superior. Sin valor, el calendario ocupa
+su contenedor igual que antes.
+
+Para dimensionar de una vez todos los calendarios de una aplicación, declara `--hub-calendar-height`
+en `:root`; un `[height]` en una instancia concreta sigue prevaleciendo.
+
+### Un calendario estrecho apila su cabecera
+
+La cabecera se reparte en tres pistas —navegación, título y conmutador de vistas— con los dos extremos
+compartiendo por igual el hueco libre, así que el mes queda centrado respecto al calendario y no
+respecto al hueco que le dejan sus vecinos. Por debajo de **48rem de ancho de calendario** los tres ya
+no caben en una fila y la cabecera se apila: el título ocupa una fila propia, centrado igual, y los dos
+grupos de botones ocupan la siguiente. Esa fila envuelve a su vez, de modo que un conmutador de cuatro
+vistas que no quepa junto a la navegación baja por debajo en lugar de salirse por el borde del
+calendario, y un botón acorta su propia etiqueta antes de que nada quede cortado. El mes y el año no se
+recortan ni se parten nunca.
+
+El punto de cambio lo decide el ancho del **calendario**, no el de la ventana: se consulta con una
+container query, porque este componente vive a menudo en una columna mucho más estrecha que el viewport.
+Por eso el calendario se declara contenedor de tamaño en línea: toma su ancho del contenedor igual que
+siempre, así que si lo colocas donde el ancho lo decide el contenido, dale uno.
+
+### Formatos de fecha y hora
+
+Todo lo que el calendario escribe —fechas y horas— es una opción, y **cada valor por defecto es lo
+que el calendario ha dibujado siempre**: no cambia nada hasta que lo pides.
+
+El vocabulario es deliberadamente el de `<hub-datepicker>`: los mismos nombres, los mismos tipos y
+el mismo orden de resolución (entrada de la instancia → configuración de la aplicación → valor
+interno), para que quien use los dos no tenga que aprender dos nombres para una misma idea. Cada
+formato se expresa de las tres maneras que admite el datepicker: opciones de `Intl`, un patrón de
+fecha de Angular o una función.
+
+| Eje                 | Qué escribe                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------ |
+| `displayFormat`     | el título de la cabecera; la vista de año, cuyo título nombra un año, se queda igual |
+| `timeDisplayFormat` | el reloj de los tooltips del chip y del día                                          |
+| `eventTimeFormat`   | la hora que un chip de la vista de mes imprime delante de un evento con hora         |
+| `slotLabelFormat`   | las etiquetas de la regla de horas de las vistas de semana y día                     |
+| `weekdayFormat`     | las cabeceras de los días de la semana                                               |
+| `monthFormat`       | el mes en el título de la cabecera y en las tarjetas de la vista de año              |
+| `hourFormat`        | 12 o 24 horas, para **todos** los relojes anteriores a la vez                        |
+
+```html
+<hub-calendar
+	[events]="events()"
+	hourFormat="24"
+	slotLabelFormat="HH:mm"
+	[displayFormat]="{ year: 'numeric', month: 'long' }"
+	weekdayFormat="narrow"
+/>
+```
+
+Dejar `hourFormat` sin valor significa _lo que diga el idioma del lector_ —el mismo significado que
+tiene en el datepicker, y la respuesta a si un tooltip debe decir `9:00` o `9:00 AM`—.
+
+Dos de los ejes del datepicker faltan a propósito. `parse` y `valueFormat` describen texto que entra
+y texto que sale, y este componente habla `Date` en todos sus bordes: `CalendarEvent.start` y `end`
+son `Date`, y `eventClick`, `dayClick`, `eventDrop`, `dateChange`, `view` y `selectedDate` emiten
+`Date` u objetos que lo llevan. No hay nada que parsear ni nada que serializar. `rangeSeparator`
+falta por lo mismo: el calendario nunca escribe un rango como texto.
+
+Un chip de mes abrevia la hora en punto a `9 AM` por defecto y los tooltips la escriben entera. No
+es una incoherencia que haya que zanjar: la celda mide poco más de cien píxeles y la hora la comparte
+con una bolita y un título, mientras que una línea de tooltip tiene todo el sitio que necesita.
+`eventTimeFormat` cambia lo primero sin tocar lo segundo.
+
+Los nombres accesibles se quedan fuera de todo esto: la etiqueta de la rejilla del mes y los nombres
+de las columnas de días se escriben enteros diga lo que diga `monthFormat` o `weekdayFormat`, porque
+una abreviatura sirve para ahorrar sitio en pantalla y un nombre que se lee en voz alta no tiene
+sitio que ahorrar.
+
+### Configuración global
+
+Declara los formatos una vez y todos los calendarios de la aplicación los heredan: es el equivalente
+de `provideHubForms()` para `<hub-datepicker>`, con la misma forma.
+
+```ts
+bootstrapApplication(App, {
+	providers: [provideHubCalendar({ formats: { hourFormat: '24', weekdayFormat: 'narrow' } })]
+});
+```
+
+Una instancia que diga otra cosa sigue prevaleciendo, y los ejes que no nombres conservan sus
+valores internos. No hay que arrancar nada para que la librería funcione: `HUB_CALENDAR_CONFIG` cae
+a esos valores por su cuenta.
+
+> `provideHubCalendar()` es **presentación** para toda la aplicación; la entrada `config` es el
+> **comportamiento** de un calendario —qué vistas ofrece su conmutador, dónde empieza su regla de
+> horas, si dibuja números de semana—. Son preguntas distintas y siguen separadas.
 
 ### Outputs
 

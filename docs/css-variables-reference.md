@@ -105,6 +105,20 @@ Read by `projects/calendar/src/lib/components/calendar/calendar.component.scss`,
 | `--hub-calendar-font-family`     | `var(--hub-ref-font-family-base, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif)` |
 | `--hub-calendar-primary`         | `var(--hub-calendar-accent)`                                                                                         |
 | `--hub-calendar-muted`           | `var(--hub-sys-text-muted, #6c757d)`                                                                                 |
+| `--hub-calendar-height`          | `100%`                                                                                                               |
+
+#### A word about `--hub-calendar-height`
+
+It is a real token — set it on `:root` to give every calendar in the application the same
+size — but for one calendar prefer the **`height` input**, which writes this token on that
+instance: `[height]="600"`, `height="auto"`, `[height]="'60vh'"`.
+
+**Do not size the calendar with a `hub-calendar { height: … }` rule of your own.** It works,
+and then it stops working the day someone adds `display: block` beside the height — which is
+the natural thing to write next to it. The calendar lays itself out as a flex column so the
+hour grid can own the scroll; a scoped element selector outranks the component's own `:host`,
+so that `display` unstacks the column and the grid grows to its full 24 hours instead of
+scrolling. The input cannot be got wrong that way.
 
 ### Header
 
@@ -113,6 +127,25 @@ Read by `projects/calendar/src/lib/components/calendar/calendar.component.scss`,
 | `--hub-calendar-header-bg`        | `var(--hub-sys-surface-elevated, #f8f9fa)` |
 | `--hub-calendar-header-padding-x` | `var(--hub-ref-space-3, 1rem)`             |
 | `--hub-calendar-header-padding-y` | `var(--hub-ref-space-3, 1rem)`             |
+| `--hub-calendar-header-gap`       | `var(--hub-ref-space-3, 1rem)`             |
+
+The header is three tracks — navigation, title, view switcher — with the two extremes
+sharing the free space equally, so the title is centred on the calendar and not on the gap
+its neighbours happen to leave. `--hub-calendar-header-gap` is the floor on the distance
+between the title and either group. When the room runs out it is the button groups that
+give, never the month: a group shrinks, and a button shortens its own label, before anything
+is cut off by the calendar's edge.
+
+Below `48rem` of calendar width the header stacks: the title takes a row of its own, still
+centred, and the two groups take the next one, which wraps in turn so the view switcher can
+never end up outside the calendar. The threshold is the **calendar's** width, asked with a
+container query rather than a media query, because the component often sits in a column far
+narrower than the window. The month and year are never clipped and never split — if they do
+not fit beside the buttons, it is the row that breaks.
+
+Both clusters are drawn as one joined control, input-group style: no gap between the
+buttons, one shared border, and rounded corners only at the two ends — logical radii, so a
+right-to-left calendar rounds the end the reader sees as last.
 
 ### Buttons
 
@@ -133,8 +166,8 @@ Read by `projects/calendar/src/lib/components/calendar/calendar.component.scss`,
 
 | Variable                               | Default                                                                             |
 | -------------------------------------- | ----------------------------------------------------------------------------------- |
-| `--hub-calendar-day-padding-x`         | `var(--hub-ref-space-2, 0.5rem)`                                                    |
-| `--hub-calendar-day-padding-y`         | `var(--hub-ref-space-2, 0.5rem)`                                                    |
+| `--hub-calendar-day-padding-x`         | `var(--hub-ref-space-1, 0.25rem)`                                                   |
+| `--hub-calendar-day-padding-y`         | `var(--hub-ref-space-1, 0.25rem)`                                                   |
 | `--hub-calendar-day-min-height`        | `80px`                                                                              |
 | `--hub-calendar-day-hover-bg`          | `var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075))`                               |
 | `--hub-calendar-day-today-bg`          | `color-mix(in oklch, var(--hub-calendar-accent) 8%, var(--hub-calendar-bg, #fff))`  |
@@ -146,14 +179,28 @@ Read by `projects/calendar/src/lib/components/calendar/calendar.component.scss`,
 
 ### Events
 
-| Variable                             | Default                                 |
-| ------------------------------------ | --------------------------------------- |
-| `--hub-calendar-event-bg`            | `var(--hub-calendar-accent)`            |
-| `--hub-calendar-event-color`         | `var(--hub-calendar-accent-on)`         |
-| `--hub-calendar-event-border-radius` | `var(--hub-ref-radius-sm, 0.25rem)`     |
-| `--hub-calendar-event-padding-x`     | `var(--hub-ref-space-2, 0.5rem)`        |
-| `--hub-calendar-event-padding-y`     | `var(--hub-ref-space-1, 0.25rem)`       |
-| `--hub-calendar-event-font-size`     | `var(--hub-ref-font-size-sm, 0.875rem)` |
+| Variable                               | Default                                |
+| -------------------------------------- | -------------------------------------- |
+| `--hub-calendar-event-bg`              | `var(--hub-calendar-accent)`           |
+| `--hub-calendar-event-color`           | `var(--hub-calendar-accent-on)`        |
+| `--hub-calendar-event-border-radius`   | `var(--hub-ref-radius-sm, 0.25rem)`    |
+| `--hub-calendar-event-padding-x`       | `var(--hub-ref-space-2, 0.5rem)`       |
+| `--hub-calendar-event-padding-y`       | `var(--hub-ref-space-1, 0.25rem)`      |
+| `--hub-calendar-event-font-size`       | `var(--hub-ref-font-size-xs, 0.75rem)` |
+| `--hub-calendar-event-gap`             | `var(--hub-ref-space-1, 0.25rem)`      |
+| `--hub-calendar-event-padding-x-timed` | `var(--hub-ref-space-1, 0.25rem)`      |
+| `--hub-calendar-event-time-font-size`  | `0.9em`                                |
+
+The last three dress the month-view timed chip only. It is a row of dot, title and hour, laid
+out the way Apple Calendar lays it out: the hour sits at the end of the chip in smaller,
+muted type and never gives up its width, so when the room runs out the title is what is
+clipped. It carries no filled background either, hence its own gap and horizontal padding.
+`--hub-calendar-event-time-font-size` is relative (`em`) on purpose: raise the chip size and
+the hour keeps its proportion instead of catching the title up.
+
+The week and day views are deliberately untouched by that order. An event there is placed
+against the hour ruler, so its position already states the time and repeating it inside the
+chip would say the same thing twice; those chips are the title alone.
 
 ### Week Numbers
 
@@ -194,6 +241,15 @@ time and therefore share the column; set it to `0` to make them touch.
 | `--hub-calendar-month-card-padding-x` | `var(--hub-ref-space-4, 1.5rem)`                      |
 | `--hub-calendar-month-card-padding-y` | `var(--hub-ref-space-4, 1.5rem)`                      |
 
+### Written by the component, not by you
+
+Three more `--hub-calendar-*` names appear in the stylesheet and are **not** hooks:
+`--hub-calendar-grid-hours`, `--hub-calendar-event-offset` and `--hub-calendar-event-span`. The
+component writes them per element as it lays the hour grid out — how many hours the ruler draws, and
+where each timed event's band starts and ends. Setting them from a stylesheet does not theme
+anything; it misplaces events. They are listed here only so that seeing one in the DOM does not read
+as an undocumented knob.
+
 ---
 
 ## Customization Examples
@@ -229,6 +285,8 @@ hub-calendar {
 	--hub-calendar-header-padding-x: 0.75rem;
 	--hub-calendar-header-padding-y: 0.75rem;
 	--hub-calendar-day-min-height: 64px;
+	--hub-calendar-day-padding-x: 0.125rem;
+	--hub-calendar-day-padding-y: 0.125rem;
 	--hub-calendar-event-font-size: 0.6875rem;
 	--hub-calendar-month-card-padding-x: 1rem;
 	--hub-calendar-month-card-padding-y: 1rem;

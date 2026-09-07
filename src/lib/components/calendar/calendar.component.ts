@@ -4,7 +4,7 @@
  * Features native HTML5 drag-and-drop, custom templates, and i18n support.
  */
 
-import { DatePipe, NgTemplateOutlet } from '@angular/common';
+import { DatePipe, formatDate, NgTemplateOutlet } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
 	afterNextRender,
@@ -21,14 +21,16 @@ import {
 	signal,
 	TemplateRef
 } from '@angular/core';
-import { HubOverflowTooltipDirective, HubTranslationService } from 'ng-hub-ui-utils';
+import { HubOverflowTooltipDirective, HubTooltipDirective, HubTranslationService } from 'ng-hub-ui-utils';
 
 import { DayCellTemplateDirective } from '../../directives/day-cell-template.directive';
 import { EventTemplateDirective } from '../../directives/event-template.directive';
 import { CALENDAR_I18N } from '../../i18n/calendar-i18n';
 import { CalendarDay, CalendarMonth, CalendarWeek } from '../../models/calendar-day';
 import { CalendarEvent, CalendarEventPlacement } from '../../models/calendar-event';
+import { HubCalendarDateFormat, resolveCalendarHour12 } from '../../models/calendar-format';
 import { CalendarConfig, CalendarViewType, DEFAULT_CALENDAR_CONFIG } from '../../models/calendar-view';
+import { HUB_CALENDAR_CONFIG } from '../../services/calendar-config';
 
 /**
  * Main calendar component supporting month, week, day, and year views.
@@ -80,18 +82,28 @@ const CALENDAR_BUILT_IN_VARIANTS = new Set<string>([
 	selector: 'hub-calendar',
 	standalone: true,
 	changeDetection: ChangeDetectionStrategy.OnPush,
-	imports: [DatePipe, NgTemplateOutlet, HubOverflowTooltipDirective],
+	imports: [DatePipe, NgTemplateOutlet, HubOverflowTooltipDirective, HubTooltipDirective],
 	templateUrl: './calendar.component.html',
 	styleUrl: './calendar.component.scss',
 	host: {
 		class: 'hub-calendar',
 		'[attr.data-variant]': 'variant() ?? null',
-		'[style.--hub-calendar-accent]': 'customAccent()'
+		'[style.--hub-calendar-accent]': 'customAccent()',
+		'[style.--hub-calendar-height]': 'resolvedHeight()'
 	}
 })
 export class HubCalendarComponent<T = any> {
 	/** Milliseconds in one hour, the unit the hour grid measures every band in. */
 	private static readonly MS_PER_HOUR = 60 * 60 * 1000;
+
+	/** Events a month cell draws before it folds the rest into the "+N more" chip. */
+	private static readonly MONTH_CELL_EVENT_LIMIT = 3;
+
+	/**
+	 * The same limit, reachable from the template. The chip and `getHiddenEvents()` have to
+	 * agree on where the cell stops drawing, so both read it from here.
+	 */
+	protected readonly monthCellEventLimit = HubCalendarComponent.MONTH_CELL_EVENT_LIMIT;
 
 	/**
 	 * Duration assumed for a timed event that declares no `end`.
@@ -126,6 +138,12 @@ export class HubCalendarComponent<T = any> {
 	 * the month grid re-renders.
 	 */
 	private readonly injector = inject(Injector);
+
+	/**
+	 * Application-wide defaults. Every format axis resolves instance input → this → built-in,
+	 * which is the order `<hub-datepicker>` resolves its own in.
+	 */
+	private readonly globalConfig = inject(HUB_CALENDAR_CONFIG);
 
 	// =========================================================================
 	// INPUTS
@@ -195,6 +213,79 @@ export class HubCalendarComponent<T = any> {
 	 * @default 'en'
 	 */
 	readonly locale = input<string>('en');
+
+	// ---- Formats -----------------------------------------------------------
+	// The vocabulary is the datepicker's, deliberately: `ng-hub-ui-forms` already solved this
+	// for `<hub-datepicker>`, and a consumer of both should not have to learn a second name for
+	// the same idea. Every one of these is `undefined` by default and falls back to
+	// `provideHubCalendar()` and then to what the calendar has always done.
+
+	/**
+	 * The header title — the month and year on show. `Intl` options, an Angular date pattern
+	 * such as `'MMMM yyyy'`, or a function. Leaves the year view's title, which names a year,
+	 * alone.
+	 */
+	readonly displayFormat = input<HubCalendarDateFormat | undefined>(undefined);
+
+	/** The clock in the chip and day tooltips. `Intl` options, composed with `hourFormat`. */
+	readonly timeDisplayFormat = input<Intl.DateTimeFormatOptions | undefined>(undefined);
+
+	/**
+	 * The hour a month-view chip prints. Unset, it keeps the abbreviation the narrow cell was
+	 * given — `9 AM` for a whole hour, `9:30 AM` for a broken one.
+	 */
+	readonly eventTimeFormat = input<HubCalendarDateFormat | undefined>(undefined);
+
+	/** The labels down the hour ruler of the week and day views. */
+	readonly slotLabelFormat = input<HubCalendarDateFormat | undefined>(undefined);
+
+	/** Force a 12- or 24-hour clock. `undefined` lets the locale decide, as in the datepicker. */
+	readonly hourFormat = input<'12' | '24' | undefined>(undefined);
+
+	/** Width of the weekday column headers. */
+	readonly weekdayFormat = input<'short' | 'narrow' | 'long' | undefined>(undefined);
+
+	/** How the month is written in the header and on the year view's cards. */
+	readonly monthFormat = input<'short' | 'long' | undefined>(undefined);
+
+	/**
+	 * How tall the calendar is.
+	 *
+	 * A bare number — or a numeric string, so `height="600"` works as an attribute — is read
+	 * as CSS pixels; anything else is passed through as written, so `'auto'`, `'30rem'` and
+	 * `'60vh'` all mean what they say. `'auto'` is the one worth naming: the calendar grows to
+	 * its content and scrolls nothing, which is what FullCalendar's `height: 'auto'` does.
+	 *
+	 * Left unset the calendar fills its container, exactly as before this input existed.
+	 *
+	 * It exists because the CSS route is a trap. Sizing the calendar from a stylesheet needs an
+	 * element selector on `hub-calendar`, a scoped one of those outranks the component's own
+	 * `:host` rule, and the `display: block` that so naturally travels beside a height unstacks
+	 * the flex column the internal scrolling is built on — the hour grid then grows to its full
+	 * day instead of scrolling inside the calendar.
+	 *
+	 * @default undefined (fills the container)
+	 */
+	readonly height = input<number | string | undefined>(undefined);
+
+	/**
+	 * The `height` input as a CSS length, written to `--hub-calendar-height` on the host.
+	 *
+	 * Returning `null` when nothing was asked for leaves the token unset, so the stylesheet's
+	 * own fallback (`100%`) applies and an application-wide `--hub-calendar-height` keeps
+	 * working — the input is the per-instance override, not a permanent occupier of the slot.
+	 */
+	protected readonly resolvedHeight = computed<string | null>(() => {
+		const height = this.height();
+		if (height === undefined || height === null || height === '') {
+			return null;
+		}
+		if (typeof height === 'number') {
+			return Number.isFinite(height) ? `${height}px` : null;
+		}
+		const trimmed = height.trim();
+		return /^-?\d+(\.\d+)?$/.test(trimmed) ? `${trimmed}px` : trimmed;
+	});
 
 	// =========================================================================
 	// OUTPUTS
@@ -275,14 +366,99 @@ export class HubCalendarComponent<T = any> {
 		() => this.weekStartsOn() ?? this.mergedConfig().weekStartsOn
 	);
 
+	// ---- Resolved formats --------------------------------------------------
+	// Instance input, else the application-wide config, else the built-in default — the same
+	// three-step fallback `<hub-datepicker>` uses, so the two behave alike when both are
+	// configured from one `provide…` call.
+
+	protected readonly _displayFormat = computed(() => this.displayFormat() ?? this.globalConfig.formats.displayFormat);
+	protected readonly _timeDisplayFormat = computed(
+		() => this.timeDisplayFormat() ?? this.globalConfig.formats.timeDisplayFormat
+	);
+	protected readonly _eventTimeFormat = computed(() => this.eventTimeFormat() ?? this.globalConfig.formats.eventTimeFormat);
+	protected readonly _slotLabelFormat = computed(() => this.slotLabelFormat() ?? this.globalConfig.formats.slotLabelFormat);
+	protected readonly _hourFormat = computed(() => this.hourFormat() ?? this.globalConfig.formats.hourFormat);
+	protected readonly _weekdayFormat = computed(() => this.weekdayFormat() ?? this.globalConfig.formats.weekdayFormat);
+	protected readonly _monthFormat = computed(() => this.monthFormat() ?? this.globalConfig.formats.monthFormat);
+
+	/** Whether every clock this calendar prints is a 12-hour one. */
+	protected readonly hour12 = computed(() => resolveCalendarHour12(this.locale(), this._hourFormat()));
+
+	/**
+	 * Turns a stated format into a function that writes a date.
+	 *
+	 * The three shapes are the datepicker's: a function is used as it is, a string is an Angular
+	 * date pattern, and `Intl` options are composed with the resolved clock — but only when they
+	 * name an hour, so a date-only format is not handed an `hour12` it has no use for. A pattern
+	 * and a function are never composed with anything: the caller said exactly what they wanted.
+	 *
+	 * An unusable language tag falls back to the runtime default rather than throwing mid-render,
+	 * which is what the calendar's formatters have always done.
+	 *
+	 * @param format - The format as the consumer stated it
+	 * @returns A function writing one date
+	 */
+	private buildFormatter(format: HubCalendarDateFormat): (date: Date) => string {
+		if (typeof format === 'function') {
+			return format;
+		}
+
+		const locale = this.locale();
+
+		if (typeof format === 'string') {
+			return (date: Date) => {
+				try {
+					return formatDate(date, format, locale);
+				} catch {
+					return formatDate(date, format, 'en-US');
+				}
+			};
+		}
+
+		const options: Intl.DateTimeFormatOptions = format.hour !== undefined ? { ...format, hour12: this.hour12() } : format;
+		let formatter: Intl.DateTimeFormat;
+		try {
+			formatter = new Intl.DateTimeFormat(locale, options);
+		} catch {
+			formatter = new Intl.DateTimeFormat(undefined, options);
+		}
+		return (date: Date) => formatter.format(date);
+	}
+
 	/**
 	 * Weekday labels based on the resolved first day of the week.
 	 * Rotated to start from the configured first day.
+	 *
+	 * `short` and `long` come from the calendar's own dictionary, so an application dictionary
+	 * still reaches them; `narrow` has no entry there and is derived from the locale, which is
+	 * where the datepicker takes every weekday name from.
 	 */
 	readonly weekdayLabels = computed(() => {
-		const i18n = this.getTranslation('weekdays') || CALENDAR_I18N['en']['weekdays'];
+		const format = this._weekdayFormat();
+		const i18n =
+			format === 'long'
+				? this.getTranslation('weekdaysFull') || CALENDAR_I18N['en']['weekdaysFull']
+				: format === 'narrow'
+					? this.narrowWeekdayNames()
+					: this.getTranslation('weekdays') || CALENDAR_I18N['en']['weekdays'];
 		const start = this.firstDayOfWeek();
 		return [...i18n.slice(start), ...i18n.slice(0, start)];
+	});
+
+	/**
+	 * Single-letter weekday names for `weekdayFormat: 'narrow'`, Sunday first like every other
+	 * weekday array here, read from the locale rather than from the dictionary.
+	 */
+	private readonly narrowWeekdayNames = computed<string[]>(() => {
+		const build = (locale: string | undefined) => new Intl.DateTimeFormat(locale, { weekday: 'narrow' });
+		let formatter: Intl.DateTimeFormat;
+		try {
+			formatter = build(this.locale());
+		} catch {
+			formatter = build(undefined);
+		}
+		// 2026-02-01 is a Sunday, so the seven days that follow it are Sunday through Saturday.
+		return Array.from({ length: 7 }, (_, index) => formatter.format(new Date(2026, 1, 1 + index)));
 	});
 
 	/**
@@ -299,10 +475,19 @@ export class HubCalendarComponent<T = any> {
 	 * Current month name for header display.
 	 * Localized based on locale setting.
 	 */
-	readonly currentMonthName = computed(() => {
-		const months = this.getTranslation('months') || CALENDAR_I18N['en']['months'];
-		return months[this.selectedDate().getMonth()];
-	});
+	readonly currentMonthName = computed(() => this.monthName(this.selectedDate().getMonth(), this._monthFormat()));
+
+	/**
+	 * A month's name from the dictionary, at the requested width.
+	 * @param month - Month index, 0-11
+	 * @param format - `long` for the spelled-out name, `short` for the abbreviation
+	 * @returns The localized month name
+	 */
+	private monthName(month: number, format: 'short' | 'long'): string {
+		const key = format === 'short' ? 'monthsShort' : 'months';
+		const names = this.getTranslation(key) || CALENDAR_I18N['en'][key];
+		return names[month];
+	}
 
 	/**
 	 * Current year for header display.
@@ -310,10 +495,32 @@ export class HubCalendarComponent<T = any> {
 	readonly currentYear = computed(() => this.selectedDate().getFullYear());
 
 	/**
+	 * The header's title.
+	 *
+	 * `displayFormat` writes it when one is given; otherwise it is the built-in composition of
+	 * the dictionary's month name and the year, which is what the header has always shown. The
+	 * year view is left out of it on purpose: its title names a year, and handing a day- or
+	 * month-shaped format to it would print a month nobody chose — the same narrowing the
+	 * datepicker does against its granularity.
+	 */
+	readonly headerTitle = computed(() => {
+		if (this.view() === CalendarViewType.YEAR) {
+			return `${this.currentYear()}`;
+		}
+
+		const format = this._displayFormat();
+		return format === undefined
+			? `${this.currentMonthName()} ${this.currentYear()}`
+			: this.buildFormatter(format)(this.selectedDate());
+	});
+
+	/**
 	 * Accessible name of the month-view grid: the visible month and year
 	 * (e.g. "July 2026"), localized like the header title.
 	 */
-	readonly monthGridLabel = computed(() => `${this.currentMonthName()} ${this.currentYear()}`);
+	// The spelled-out month whatever `monthFormat` says: an abbreviation is a way of saving
+	// room on screen, and an accessible name has none to save.
+	readonly monthGridLabel = computed(() => `${this.monthName(this.selectedDate().getMonth(), 'long')} ${this.currentYear()}`);
 
 	/**
 	 * Localized labels for the icon-only previous/next navigation buttons.
@@ -360,8 +567,11 @@ export class HubCalendarComponent<T = any> {
 	 * 9:30 would be a lie rather than an abbreviation.
 	 */
 	private readonly shortTimeFormatter = computed(() => {
+		const hour12 = this.hour12();
 		const build = (locale: string | undefined, minute: boolean) => {
-			const options: Intl.DateTimeFormatOptions = minute ? { hour: 'numeric', minute: '2-digit' } : { hour: 'numeric' };
+			const options: Intl.DateTimeFormatOptions = minute
+				? { hour: 'numeric', minute: '2-digit', hour12 }
+				: { hour: 'numeric', hour12 };
 			return new Intl.DateTimeFormat(locale, options);
 		};
 		try {
@@ -595,8 +805,49 @@ export class HubCalendarComponent<T = any> {
 	 * @returns Localized short weekday name (e.g. "Wed")
 	 */
 	getWeekdayLabel(date: Date): string {
-		const weekdays = this.getTranslation('weekdays') || CALENDAR_I18N['en']['weekdays'];
+		const format = this._weekdayFormat();
+		if (format === 'narrow') {
+			return this.narrowWeekdayNames()[date.getDay()];
+		}
+		const key = format === 'long' ? 'weekdaysFull' : 'weekdays';
+		const weekdays = this.getTranslation(key) || CALENDAR_I18N['en'][key];
 		return weekdays[date.getDay()];
+	}
+
+	/**
+	 * A label down the hour ruler of the week and day views.
+	 *
+	 * Unset, it stays the bare `9:00` the ruler has always printed: a plain number and a literal
+	 * `:00`, which is neither a clock nor localized, and which no existing calendar may lose.
+	 * Asking for a `hourFormat` is enough to turn it into a real clock, because a consumer who
+	 * has said "this calendar runs on a 12-hour clock" has said it about the ruler too.
+	 *
+	 * @param hour - Hour of the day, 0-23
+	 * @returns The label for that row of the ruler
+	 */
+	getSlotLabel(hour: number): string {
+		// Any date will do: only the hour is read out of it.
+		const slot = new Date(2026, 0, 1, hour);
+		const format = this._slotLabelFormat();
+
+		if (format !== undefined) {
+			return this.buildFormatter(format)(slot);
+		}
+
+		if (this._hourFormat() !== undefined) {
+			return this.buildFormatter({ hour: 'numeric' })(slot);
+		}
+
+		return `${hour}:00`;
+	}
+
+	/**
+	 * The name a year-view month card prints, at the width `monthFormat` asks for.
+	 * @param month - The month summary being drawn
+	 * @returns The localized month name
+	 */
+	getMonthCardLabel(month: CalendarMonth): string {
+		return this._monthFormat() === 'short' ? month.shortName : month.name;
 	}
 
 	/**
@@ -638,6 +889,120 @@ export class HubCalendarComponent<T = any> {
 	 */
 	getEventCountLabel(count: number): string {
 		return this.countLabel('eventCount', count);
+	}
+
+	/**
+	 * Events a month cell holds but does not draw — the ones the "+N more" chip stands for.
+	 * @param day - The day whose cell overflowed
+	 * @returns The events past the third, in the caller's own order
+	 */
+	getHiddenEvents(day: CalendarDay<T>): CalendarEvent<T>[] {
+		return day.events.slice(HubCalendarComponent.MONTH_CELL_EVENT_LIMIT);
+	}
+
+	/**
+	 * One event as one line: its title and, when it has one, its hour — the same two pieces
+	 * the chip shows, in the order it shows them.
+	 *
+	 * This is what the overflow tooltip announces. Where the truncation is *measured* and
+	 * what is *shown* are two different questions: the measurement stays on the title,
+	 * because that is the only box that clips, but the answer has to be the whole row —
+	 * the hour is exactly what a narrow cell squeezes away from the title beside it. An
+	 * all-day event has no hour, so its line is the title alone and no separator is left
+	 * dangling behind it.
+	 *
+	 * The week and day views get the same line even though their chips print no hour: the
+	 * ruler states the time by position, but the tooltip is read on its own and two events
+	 * that share a title are told apart by nothing else.
+	 *
+	 * @param event - The event the chip stands for
+	 * @param date - The day the chip is drawn in, which decides whether the hour is this day's
+	 * @returns The event's row as one line
+	 */
+	getEventTooltip(event: CalendarEvent<T>, date: Date): string {
+		const time = this.getEventTime(event, date);
+		return time ? `${event.title} · ${time}` : event.title;
+	}
+
+	/**
+	 * The whole day, one event per line, as the "+N more" chip's hover text.
+	 *
+	 * The chip said how many events were missing and never which, so the only way to find out
+	 * was to open the day. Google Calendar answers the same question with a popover listing
+	 * the rest; a tooltip is the modest version of that — it tells the reader what is behind
+	 * the chip without inventing an overlay, a focus trap and a dismissal contract this
+	 * component does not otherwise have.
+	 *
+	 * It lists **every** event of the day, not only the hidden ones: reading a list of the
+	 * leftovers means adding it to the three chips above by eye to know what the day holds,
+	 * and the point of hovering the chip is to see the day at a glance. The three already on
+	 * screen cost one line each and keep the caller's own order.
+	 *
+	 * It is a plain `[hubTooltip]`, not the overflow one: the chip is a short label that
+	 * always fits, so a tooltip that speaks only while its host is truncated would never
+	 * speak at all. The line breaks survive because the chip asks for a pre-line white space,
+	 * which the directive forwards onto the bubble.
+	 *
+	 * @param day - The day whose cell overflowed
+	 * @returns One line per event of the day
+	 */
+	getDayEventsTooltip(day: CalendarDay<T>): string {
+		return this.getDayEventLines(day, '- ').join('\n');
+	}
+
+	/**
+	 * The day as a list of lines, one per event, in the order the day holds them — which puts
+	 * the all-day events first, as the cell draws them.
+	 *
+	 * An all-day event has no hour to file it under, so its line is named instead: the
+	 * localized "all day" label and the title. One such line per event rather than one line
+	 * listing them all, so every line of the list is one event and the eye can count them.
+	 * A timed event goes under a bullet, its clock time and a colon.
+	 *
+	 * The label is the dictionary's existing `allDay` — the same word the week and day views
+	 * print in the margin of their all-day strip. A second key holding the same string in
+	 * every language would be one more thing for a translator to fill and one more thing to
+	 * drift out of step with the strip.
+	 *
+	 * @param day - The day being listed
+	 * @param bullet - Marker in front of a timed line; empty when the list is read aloud
+	 * @returns One line per event
+	 */
+	private getDayEventLines(day: CalendarDay<T>, bullet: string): string[] {
+		return day.events.map((event) =>
+			event.allDay ? `${this.label('allDay')}: ${event.title}` : `${bullet}${this.getClockTime(event)}: ${event.title}`
+		);
+	}
+
+	/**
+	 * An event's clock time, always with its minutes.
+	 *
+	 * The chip abbreviates a whole hour to `9 AM` because a month cell is too narrow to spend
+	 * three characters on `:00`. A tooltip line has all the room it needs, and a list where
+	 * some entries carry minutes and others do not reads as ragged rather than as brief. It
+	 * follows the `locale` input like every other label, so it is 24-hour where the language
+	 * is and 12-hour where it is not.
+	 *
+	 * @param event - The event whose start is being written
+	 * @returns The localized start time, hour and minutes
+	 */
+	private getClockTime(event: CalendarEvent<T>): string {
+		return this.buildFormatter(this._timeDisplayFormat())(new Date(event.start));
+	}
+
+	/**
+	 * Accessible name of the "+N more" chip: the count it shows plus the same day the tooltip
+	 * lists, because a tooltip is a pointer affordance and the chip is not focusable. The
+	 * lines are joined with a comma rather than a newline — an accessible name is read as one
+	 * string, and a stray line break in it is announced as nothing at all.
+	 * @param day - The day whose cell overflowed
+	 * @returns Localized count followed by the day's events
+	 */
+	getDayEventsLabel(day: CalendarDay<T>): string {
+		// The same lines, minus the bullet: a hyphen carries a list on screen and is read out
+		// as a stray character or as nothing at all.
+		const lines = this.getDayEventLines(day, '');
+		return `${this.getMoreEventsLabel(this.getHiddenEvents(day).length)}: ${lines.join(', ')}`;
 	}
 
 	// =========================================================================
@@ -809,6 +1174,11 @@ export class HubCalendarComponent<T = any> {
 		if (!this.isSameDay(start, date)) {
 			return '';
 		}
+		const format = this._eventTimeFormat();
+		if (format !== undefined) {
+			return this.buildFormatter(format)(start);
+		}
+
 		const { sharp, split } = this.shortTimeFormatter();
 		return (start.getMinutes() === 0 ? sharp : split).format(start);
 	}
