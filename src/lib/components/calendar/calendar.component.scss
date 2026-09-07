@@ -1,80 +1,106 @@
-:root,
-:host {
-	--hub-calendar-bg: var(--hub-sys-surface-page, #ffffff);
-	--hub-calendar-color: var(--hub-sys-text-primary, #212529);
-	--hub-calendar-border-color: var(--hub-sys-border-color-default, #dee2e6);
-	--hub-calendar-border-radius: var(--hub-ref-radius-md, 0.375rem);
-	// Semantic accent — drives the today / selected day, the active view button
-	// and the event chips. Defaults to primary; a `variant` re-bases this single
-	// slot (@each below) and the roles below recompute from it at runtime.
-	--hub-calendar-accent: var(--hub-sys-color-primary, #0d6efd);
-	// Roles derived locally from the accent slot, mirroring the ds engine: any
-	// accent (a known variant or a custom `brand`) yields a coherent family with
-	// no recompilation. `-on` is a grayscale contrast flip driven by the accent's
-	// own lightness (dark accents → white text, light accents → near-black).
-	--hub-calendar-accent-emphasis: color-mix(in oklch, var(--hub-calendar-accent) 80%, var(--hub-sys-color-ink, #212529));
-	--hub-calendar-accent-subtle: color-mix(in oklch, var(--hub-calendar-accent) 12%, var(--hub-sys-surface-page, #fff));
-	--hub-calendar-accent-on: oklch(from var(--hub-calendar-accent) clamp(0, (0.62 - l) * 1000, 1) 0 h);
-	--hub-calendar-font-family: var(
-		--hub-ref-font-family-base,
-		system-ui,
-		-apple-system,
-		'Segoe UI',
-		Roboto,
-		'Helvetica Neue',
-		Arial,
-		sans-serif
-	);
-	--hub-calendar-header-bg: var(--hub-sys-surface-elevated, #f8f9fa);
-	--hub-calendar-header-padding-x: var(--hub-ref-space-3, 1rem);
-	--hub-calendar-header-padding-y: var(--hub-ref-space-3, 1rem);
-	--hub-calendar-btn-bg: var(--hub-ref-color-white, #ffffff);
-	--hub-calendar-btn-color: inherit;
-	--hub-calendar-btn-border-color: var(--hub-sys-border-color-default, #dee2e6);
-	--hub-calendar-btn-border-radius: var(--hub-ref-radius-sm, 0.25rem);
-	--hub-calendar-btn-padding-x: var(--hub-ref-space-3, 1rem);
-	--hub-calendar-btn-padding-y: var(--hub-ref-space-2, 0.5rem);
-	--hub-calendar-btn-hover-bg: var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075));
-	--hub-calendar-btn-active-bg: var(--hub-calendar-accent);
-	--hub-calendar-btn-active-color: var(--hub-calendar-accent-on, var(--hub-ref-color-white, #ffffff));
-	--hub-calendar-day-padding-x: var(--hub-ref-space-2, 0.5rem);
-	--hub-calendar-day-padding-y: var(--hub-ref-space-2, 0.5rem);
-	--hub-calendar-day-min-height: 80px;
-	--hub-calendar-day-hover-bg: var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075));
-	--hub-calendar-day-today-bg: color-mix(in oklch, var(--hub-calendar-accent) 8%, var(--hub-calendar-bg, #fff));
-	--hub-calendar-day-other-month-bg: var(--hub-sys-surface-elevated, #f8f9fa);
-	--hub-calendar-day-other-month-color: var(--hub-sys-text-muted, #6c757d);
-	--hub-calendar-day-weekend-bg: var(--hub-sys-surface-elevated, #f8f9fa);
-	--hub-calendar-day-selected-bg: var(--hub-calendar-accent-subtle);
-	--hub-calendar-day-drag-over-bg: color-mix(in oklch, var(--hub-calendar-accent) 32%, var(--hub-calendar-bg, #fff));
-	--hub-calendar-event-bg: var(--hub-calendar-accent);
-	--hub-calendar-event-color: var(--hub-calendar-accent-on, var(--hub-ref-color-white, #ffffff));
-	--hub-calendar-event-border-radius: var(--hub-ref-radius-sm, 0.25rem);
-	--hub-calendar-event-padding-x: var(--hub-ref-space-2, 0.5rem);
-	--hub-calendar-event-padding-y: var(--hub-ref-space-1, 0.25rem);
-	--hub-calendar-event-font-size: var(--hub-ref-font-size-sm, 0.875rem);
-	--hub-calendar-month-card-bg: var(--hub-sys-surface-elevated, #f8f9fa);
-	--hub-calendar-month-card-hover-bg: var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075));
-	--hub-calendar-month-card-padding-x: var(--hub-ref-space-4, 1.5rem);
-	--hub-calendar-month-card-padding-y: var(--hub-ref-space-4, 1.5rem);
-	--hub-calendar-primary: var(--hub-calendar-accent);
-	--hub-calendar-muted: var(--hub-sys-text-muted, #6c757d);
-	--hub-calendar-btn-transition: var(--hub-sys-transition-base, all 0.2s ease-in-out);
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// hub-calendar token contract — the public `--hub-calendar-*` surface.
+//
+// The defaults are READ here, never declared on the host. This component uses
+// emulated encapsulation, so a `:root, :host { … }` block was rewritten into two
+// halves that both failed the consumer: the `:root` half became an attribute
+// selector matching nothing, and the `:host` half landed on `<hub-calendar>`
+// itself — and a declaration on an element beats any value inherited from an
+// ancestor, whatever its specificity. An application setting `--hub-calendar-*`
+// in its own `:root`, or on `hub-calendar`, therefore never reached the grid.
+//
+// Read as `var(--token, <default>)`, the fallback applies only while nobody has
+// set the token, so a rule written anywhere above the calendar wins. Each default
+// keeps the family's chain — component token → sys token → ref token → literal —
+// so re-pointing a design-system token still re-themes the calendar with the app.
+//
+// The derived accent roles resolve at the point of use rather than on the host,
+// which is what lets a consumer re-base the accent alone and have the today tint,
+// the selected day and the chips recompute from it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Surface
+$bg: var(--hub-calendar-bg, var(--hub-sys-surface-page, #ffffff));
+$color: var(--hub-calendar-color, var(--hub-sys-text-primary, #212529));
+$border-color: var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6));
+$border-radius: var(--hub-calendar-border-radius, var(--hub-ref-radius-md, 0.375rem));
+$font-family: var(
+	--hub-calendar-font-family,
+	var(--hub-ref-font-family-base, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif)
+);
+$muted: var(--hub-calendar-muted, var(--hub-sys-text-muted, #6c757d));
+$transition: var(--hub-calendar-btn-transition, var(--hub-sys-transition-base, all 0.2s ease-in-out));
+
+// Semantic accent — one slot, re-based per `variant`, with the roles derived from
+// whatever it holds so a custom accent yields a coherent family with no recompile.
+// `-on` is a grayscale contrast flip driven by the accent's own lightness.
+$accent: var(--hub-calendar-accent, var(--hub-sys-color-primary, #0d6efd));
+$accent-subtle: var(--hub-calendar-accent-subtle, color-mix(in oklch, #{$accent} 12%, var(--hub-sys-surface-page, #fff)));
+$accent-on: var(--hub-calendar-accent-on, oklch(from #{$accent} clamp(0, (0.62 - l) * 1000, 1) 0 h));
+$primary: var(--hub-calendar-primary, #{$accent});
+
+// Header
+$header-bg: var(--hub-calendar-header-bg, var(--hub-sys-surface-elevated, #f8f9fa));
+$header-padding-x: var(--hub-calendar-header-padding-x, var(--hub-ref-space-3, 1rem));
+$header-padding-y: var(--hub-calendar-header-padding-y, var(--hub-ref-space-3, 1rem));
+
+// Buttons (nav / today / view switcher)
+$btn-bg: var(--hub-calendar-btn-bg, var(--hub-ref-color-white, #ffffff));
+$btn-color: var(--hub-calendar-btn-color, inherit);
+$btn-border-color: var(--hub-calendar-btn-border-color, var(--hub-sys-border-color-default, #dee2e6));
+$btn-border-radius: var(--hub-calendar-btn-border-radius, var(--hub-ref-radius-sm, 0.25rem));
+$btn-padding-x: var(--hub-calendar-btn-padding-x, var(--hub-ref-space-3, 1rem));
+$btn-padding-y: var(--hub-calendar-btn-padding-y, var(--hub-ref-space-2, 0.5rem));
+$btn-hover-bg: var(--hub-calendar-btn-hover-bg, var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075)));
+$btn-active-bg: var(--hub-calendar-btn-active-bg, #{$accent});
+$btn-active-color: var(--hub-calendar-btn-active-color, #{$accent-on});
+
+// Day cells (month grid)
+$day-padding-x: var(--hub-calendar-day-padding-x, var(--hub-ref-space-2, 0.5rem));
+$day-padding-y: var(--hub-calendar-day-padding-y, var(--hub-ref-space-2, 0.5rem));
+$day-min-height: var(--hub-calendar-day-min-height, 80px);
+$day-hover-bg: var(--hub-calendar-day-hover-bg, var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075)));
+$day-today-bg: var(--hub-calendar-day-today-bg, color-mix(in oklch, #{$accent} 8%, var(--hub-calendar-bg, #fff)));
+$day-other-month-bg: var(--hub-calendar-day-other-month-bg, var(--hub-sys-surface-elevated, #f8f9fa));
+$day-other-month-color: var(--hub-calendar-day-other-month-color, var(--hub-sys-text-muted, #6c757d));
+$day-weekend-bg: var(--hub-calendar-day-weekend-bg, var(--hub-sys-surface-elevated, #f8f9fa));
+$day-selected-bg: var(--hub-calendar-day-selected-bg, #{$accent-subtle});
+$day-drag-over-bg: var(--hub-calendar-day-drag-over-bg, color-mix(in oklch, #{$accent} 32%, var(--hub-calendar-bg, #fff)));
+
+// Event chips
+$event-bg: var(--hub-calendar-event-bg, #{$accent});
+$event-color: var(--hub-calendar-event-color, #{$accent-on});
+$event-border-radius: var(--hub-calendar-event-border-radius, var(--hub-ref-radius-sm, 0.25rem));
+$event-padding-x: var(--hub-calendar-event-padding-x, var(--hub-ref-space-2, 0.5rem));
+$event-padding-y: var(--hub-calendar-event-padding-y, var(--hub-ref-space-1, 0.25rem));
+$event-font-size: var(--hub-calendar-event-font-size, var(--hub-ref-font-size-sm, 0.875rem));
+
+// Year-view month cards
+$month-card-bg: var(--hub-calendar-month-card-bg, var(--hub-sys-surface-elevated, #f8f9fa));
+$month-card-hover-bg: var(--hub-calendar-month-card-hover-bg, var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075)));
+$month-card-padding-x: var(--hub-calendar-month-card-padding-x, var(--hub-ref-space-4, 1.5rem));
+$month-card-padding-y: var(--hub-calendar-month-card-padding-y, var(--hub-ref-space-4, 1.5rem));
+
+// Structural columns and rows
+$week-number-width: var(--hub-calendar-week-number-width, 3rem);
+$time-column-width: var(--hub-calendar-time-column-width, 60px);
+$all-day-min-height: var(--hub-calendar-all-day-min-height, 2.5rem);
 
 :host {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
-	font-family: var(
-		--hub-calendar-font-family,
-		var(--hub-ref-font-family-base, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif)
-	);
-	background: var(--hub-calendar-bg, var(--hub-sys-surface-page, #ffffff));
-	color: var(--hub-calendar-color, var(--hub-sys-text-primary, #212529));
-	border-radius: var(--hub-calendar-border-radius, var(--hub-ref-radius-md, 0.375rem));
-	border: 1px solid var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6));
+	font-family: #{$font-family};
+	background: #{$bg};
+	color: #{$color};
+	border-radius: #{$border-radius};
+	border: 1px solid #{$border-color};
 	overflow: hidden;
+
+	// The accent's fourth role. The calendar paints nothing with it — it is a hook for a
+	// consumer dressing the grid, declared here so it exists to be read, and derived from
+	// the slot on this same element so a `variant` recomputes it.
+	--hub-calendar-accent-emphasis: color-mix(in oklch, #{$accent} 80%, var(--hub-sys-color-ink, #212529));
 }
 
 .hub-calendar {
@@ -82,10 +108,9 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: var(--hub-calendar-header-padding-y, var(--hub-ref-space-3, 1rem))
-			var(--hub-calendar-header-padding-x, var(--hub-ref-space-3, 1rem));
-		border-bottom: 1px solid var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6));
-		background: var(--hub-calendar-header-bg, var(--hub-sys-surface-elevated, #f8f9fa));
+		padding: #{$header-padding-y} #{$header-padding-x};
+		border-bottom: 1px solid #{$border-color};
+		background: #{$header-bg};
 	}
 
 	&__nav {
@@ -105,28 +130,27 @@
 	}
 
 	&__btn {
-		padding: var(--hub-calendar-btn-padding-y, var(--hub-ref-space-2, 0.5rem))
-			var(--hub-calendar-btn-padding-x, var(--hub-ref-space-3, 1rem));
-		border: 1px solid var(--hub-calendar-btn-border-color, var(--hub-sys-border-color-default, #dee2e6));
-		background: var(--hub-calendar-btn-bg, var(--hub-ref-color-white, #ffffff));
-		color: var(--hub-calendar-btn-color, inherit);
-		border-radius: var(--hub-calendar-btn-border-radius, var(--hub-ref-radius-sm, 0.25rem));
+		padding: #{$btn-padding-y} #{$btn-padding-x};
+		border: 1px solid #{$btn-border-color};
+		background: #{$btn-bg};
+		color: #{$btn-color};
+		border-radius: #{$btn-border-radius};
 		cursor: pointer;
 		font-size: var(--hub-ref-font-size-base, 1rem);
-		transition: var(--hub-calendar-btn-transition, var(--hub-sys-transition-base, all 0.2s ease-in-out));
+		transition: #{$transition};
 
 		&:hover {
-			background: var(--hub-calendar-btn-hover-bg, var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075)));
+			background: #{$btn-hover-bg};
 		}
 
 		&--active {
-			background: var(--hub-calendar-btn-active-bg, var(--hub-sys-color-primary, #0d6efd));
-			color: var(--hub-calendar-btn-active-color, var(--hub-ref-color-white, #ffffff));
-			border-color: var(--hub-calendar-btn-active-bg, var(--hub-sys-color-primary, #0d6efd));
+			background: #{$btn-active-bg};
+			color: #{$btn-active-color};
+			border-color: #{$btn-active-bg};
 		}
 
 		&--nav {
-			padding: var(--hub-calendar-btn-padding-y, var(--hub-ref-space-2, 0.5rem)) 0.75rem;
+			padding: #{$btn-padding-y} 0.75rem;
 		}
 	}
 
@@ -144,8 +168,12 @@
 	&__weekdays {
 		display: grid;
 		grid-template-columns: repeat(7, 1fr);
-		border-bottom: 1px solid var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6));
-		background: var(--hub-calendar-header-bg, var(--hub-sys-surface-elevated, #f8f9fa));
+		border-bottom: 1px solid #{$border-color};
+		background: #{$header-bg};
+
+		&--with-week-numbers {
+			grid-template-columns: #{$week-number-width} repeat(7, 1fr);
+		}
 	}
 
 	&__weekday {
@@ -154,7 +182,7 @@
 		font-weight: var(--hub-ref-font-weight-semibold, 600);
 		font-size: var(--hub-ref-font-size-sm, 0.875rem);
 		text-transform: uppercase;
-		color: var(--hub-calendar-muted, var(--hub-sys-text-muted, #6c757d));
+		color: #{$muted};
 	}
 
 	&__weeks {
@@ -170,19 +198,35 @@
 		min-height: 100px;
 		/* Prevent intrinsic content width from expanding month grid tracks. */
 		min-width: 0;
+
+		&--with-week-numbers {
+			grid-template-columns: #{$week-number-width} repeat(7, 1fr);
+		}
+	}
+
+	&__week-number {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-right: 1px solid #{$border-color};
+		border-bottom: 1px solid #{$border-color};
+		background: #{$header-bg};
+		color: #{$muted};
+		font-size: var(--hub-ref-font-size-sm, 0.875rem);
+		/* Equal-width digits keep the column from twitching between one- and two-digit weeks. */
+		font-variant-numeric: tabular-nums;
 	}
 
 	&__day {
-		padding: var(--hub-calendar-day-padding-y, var(--hub-ref-space-2, 0.5rem))
-			var(--hub-calendar-day-padding-x, var(--hub-ref-space-2, 0.5rem));
-		border-right: 1px solid var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6));
-		border-bottom: 1px solid var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6));
+		padding: #{$day-padding-y} #{$day-padding-x};
+		border-right: 1px solid #{$border-color};
+		border-bottom: 1px solid #{$border-color};
 		cursor: pointer;
 		transition: background 0.2s ease-in-out;
 		display: flex;
 		flex-direction: column;
 		gap: var(--hub-ref-space-1, 0.25rem);
-		min-height: var(--hub-calendar-day-min-height, 80px);
+		min-height: #{$day-min-height};
 		/* Allow grid items to shrink below min-content width when event text is long. */
 		min-width: 0;
 
@@ -191,41 +235,35 @@
 		}
 
 		&:hover {
-			background: var(--hub-calendar-day-hover-bg, var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075)));
+			background: #{$day-hover-bg};
 		}
 
 		// Keyboard focus ring for the roving-tabindex grid cell; drawn inward
 		// so it stays visible between adjoining cell borders.
 		&:focus-visible {
-			outline: 2px solid var(--hub-calendar-accent);
+			outline: 2px solid #{$accent};
 			outline-offset: -2px;
 		}
 
 		&--today {
-			background: var(
-				--hub-calendar-day-today-bg,
-				color-mix(in oklch, var(--hub-calendar-accent) 8%, var(--hub-calendar-bg, #fff))
-			);
+			background: #{$day-today-bg};
 		}
 
 		&--other-month {
-			color: var(--hub-calendar-day-other-month-color, var(--hub-sys-text-muted, #6c757d));
-			background: var(--hub-calendar-day-other-month-bg, var(--hub-sys-surface-elevated, #f8f9fa));
+			color: #{$day-other-month-color};
+			background: #{$day-other-month-bg};
 		}
 
 		&--weekend {
-			background: var(--hub-calendar-day-weekend-bg, var(--hub-sys-surface-elevated, #f8f9fa));
+			background: #{$day-weekend-bg};
 		}
 
 		&--selected {
-			background: var(--hub-calendar-day-selected-bg, var(--hub-calendar-accent-subtle));
+			background: #{$day-selected-bg};
 		}
 
 		&--drag-over {
-			background: var(
-				--hub-calendar-day-drag-over-bg,
-				color-mix(in oklch, var(--hub-calendar-accent) 32%, var(--hub-calendar-bg, #fff))
-			);
+			background: #{$day-drag-over-bg};
 		}
 	}
 
@@ -244,12 +282,11 @@
 	}
 
 	&__event {
-		padding: var(--hub-calendar-event-padding-y, var(--hub-ref-space-1, 0.25rem))
-			var(--hub-calendar-event-padding-x, var(--hub-ref-space-2, 0.5rem));
-		font-size: var(--hub-calendar-event-font-size, var(--hub-ref-font-size-sm, 0.875rem));
-		background: var(--hub-calendar-event-bg, var(--hub-sys-color-primary, #0d6efd));
-		color: var(--hub-calendar-event-color, var(--hub-ref-color-white, #ffffff));
-		border-radius: var(--hub-calendar-event-border-radius, var(--hub-ref-radius-sm, 0.25rem));
+		padding: #{$event-padding-y} #{$event-padding-x};
+		font-size: #{$event-font-size};
+		background: #{$event-bg};
+		color: #{$event-color};
+		border-radius: #{$event-border-radius};
 		cursor: pointer;
 		white-space: nowrap;
 		overflow: hidden;
@@ -267,7 +304,7 @@
 		// Keyboard focus ring for the chip; drawn inward in the contrast
 		// colour so it reads on top of the accent-coloured chip background.
 		&:focus-visible {
-			outline: 2px solid var(--hub-calendar-accent-on, var(--hub-ref-color-white, #ffffff));
+			outline: 2px solid #{$accent-on};
 			outline-offset: -2px;
 		}
 
@@ -278,6 +315,37 @@
 				cursor: grabbing;
 			}
 		}
+
+		// Month view only: a timed event states its hour and steps back to a dot, so the
+		// filled bars left standing are the all-day ones. The month grid has no room for
+		// the all-day strip the week and day views use, so the contrast is made the other
+		// way round — which is the arrangement every calendar the reader already knows uses.
+		// The dot and the hour stay INLINE rather than turning the chip into a flex row:
+		// the overflow tooltip measures `scrollWidth` on the chip itself, and a flex child
+		// clipping its own text would hide the overflow from it, silently retiring the
+		// tooltip on every timed chip.
+		&--timed {
+			background: transparent;
+			color: inherit;
+
+			&:focus-visible {
+				outline-color: #{$accent};
+			}
+		}
+	}
+
+	&__event-dot {
+		display: inline-block;
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 50%;
+		background: #{$event-bg};
+		vertical-align: middle;
+	}
+
+	&__event-time {
+		color: #{$muted};
+		font-variant-numeric: tabular-nums;
 	}
 
 	&__event-title {
@@ -297,7 +365,7 @@
 
 	&__more {
 		font-size: var(--hub-ref-font-size-xs, 0.75rem);
-		color: var(--hub-calendar-muted, var(--hub-sys-text-muted, #6c757d));
+		color: #{$muted};
 		text-align: center;
 	}
 
@@ -306,14 +374,16 @@
 		flex: 1;
 		display: flex;
 		flex-direction: column;
-		overflow: auto;
+		/* The hour grid below owns the scroll, so the day headers and the all-day
+		   strip stay put while the day is scrolled. */
+		overflow: hidden;
+		min-height: 0;
 	}
 
 	&__day-view-header {
-		padding: var(--hub-calendar-header-padding-y, var(--hub-ref-space-3, 1rem))
-			var(--hub-calendar-header-padding-x, var(--hub-ref-space-3, 1rem));
-		background: var(--hub-calendar-header-bg, var(--hub-sys-surface-elevated, #f8f9fa));
-		border-bottom: 1px solid var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6));
+		padding: #{$header-padding-y} #{$header-padding-x};
+		background: #{$header-bg};
+		border-bottom: 1px solid #{$border-color};
 
 		h3 {
 			margin: 0;
@@ -322,28 +392,81 @@
 		}
 	}
 
+	&__week-header {
+		display: flex;
+		border-bottom: 1px solid #{$border-color};
+		background: #{$header-bg};
+	}
+
+	// Blank corner above the hour ruler, kept exactly as wide as it so the day
+	// headers, the all-day cells and the hour columns stay on the same tracks.
+	&__time-gutter {
+		width: #{$time-column-width};
+		flex-shrink: 0;
+		border-right: 1px solid #{$border-color};
+	}
+
+	// The all-day strip: the row that makes the distinction self-evident. An event
+	// drawn here IS an all-day event, which is why the chips inside need no icon and
+	// no tooltip saying so. It is rendered whether or not the day has one, so the
+	// label stays where the reader learned it and the hour grid does not jump by a
+	// row as the week changes.
+	&__all-day {
+		display: flex;
+		flex-shrink: 0;
+		min-height: #{$all-day-min-height};
+		border-bottom: 1px solid #{$border-color};
+	}
+
+	&__all-day-label {
+		width: #{$time-column-width};
+		flex-shrink: 0;
+		padding: var(--hub-ref-space-1, 0.25rem);
+		border-right: 1px solid #{$border-color};
+		font-size: var(--hub-ref-font-size-xs, 0.75rem);
+		text-transform: uppercase;
+		color: #{$muted};
+	}
+
+	&__all-day-cell {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--hub-ref-space-1, 0.25rem);
+		padding: var(--hub-ref-space-1, 0.25rem);
+		border-right: 1px solid #{$border-color};
+		transition: background 0.2s ease-in-out;
+
+		&:last-child {
+			border-right: none;
+		}
+	}
+
 	&__time-grid {
 		display: flex;
 		flex: 1;
+		overflow: auto;
+		min-height: 0;
 	}
 
 	&__time-column {
-		width: 60px;
+		width: #{$time-column-width};
 		flex-shrink: 0;
-		border-right: 1px solid var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6));
+		border-right: 1px solid #{$border-color};
 	}
 
 	&__time-slot {
 		height: 60px;
 		padding: var(--hub-ref-space-1, 0.25rem);
 		font-size: var(--hub-ref-font-size-sm, 0.875rem);
-		color: var(--hub-calendar-muted, var(--hub-sys-text-muted, #6c757d));
-		border-bottom: 1px solid var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6));
+		color: #{$muted};
+		border-bottom: 1px solid #{$border-color};
 	}
 
 	&__day-column {
 		flex: 1;
-		border-right: 1px solid var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6));
+		border-right: 1px solid #{$border-color};
 		position: relative;
 		transition: background 0.2s ease-in-out;
 
@@ -352,14 +475,11 @@
 		}
 
 		&--today {
-			background: var(
-				--hub-calendar-day-today-bg,
-				color-mix(in oklch, var(--hub-calendar-accent) 8%, var(--hub-calendar-bg, #fff))
-			);
+			background: #{$day-today-bg};
 		}
 
 		&--weekend {
-			background: var(--hub-calendar-day-weekend-bg, var(--hub-sys-surface-elevated, #f8f9fa));
+			background: #{$day-weekend-bg};
 		}
 
 		&--full {
@@ -368,18 +488,28 @@
 	}
 
 	&__day-header {
+		flex: 1;
+		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		padding: var(--hub-ref-space-2, 0.5rem);
-		border-bottom: 1px solid var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6));
-		background: var(--hub-calendar-header-bg, var(--hub-sys-surface-elevated, #f8f9fa));
+		border-right: 1px solid #{$border-color};
+		background: #{$header-bg};
+
+		&:last-child {
+			border-right: none;
+		}
+
+		&--today {
+			background: #{$day-today-bg};
+		}
 	}
 
 	&__day-name {
 		font-size: var(--hub-ref-font-size-xs, 0.75rem);
 		text-transform: uppercase;
-		color: var(--hub-calendar-muted, var(--hub-sys-text-muted, #6c757d));
+		color: #{$muted};
 	}
 
 	&__day-events {
@@ -402,23 +532,22 @@
 	}
 
 	&__month-card {
-		padding: var(--hub-calendar-month-card-padding-y, var(--hub-ref-space-4, 1.5rem))
-			var(--hub-calendar-month-card-padding-x, var(--hub-ref-space-4, 1.5rem));
+		padding: #{$month-card-padding-y} #{$month-card-padding-x};
 		text-align: center;
-		background: var(--hub-calendar-month-card-bg, var(--hub-sys-surface-elevated, #f8f9fa));
-		border-radius: var(--hub-calendar-border-radius, var(--hub-ref-radius-md, 0.375rem));
-		border: 1px solid var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6));
+		background: #{$month-card-bg};
+		border-radius: #{$border-radius};
+		border: 1px solid #{$border-color};
 		cursor: pointer;
-		transition: var(--hub-calendar-btn-transition, var(--hub-sys-transition-base, all 0.2s ease-in-out));
+		transition: #{$transition};
 
 		&:hover {
-			background: var(--hub-calendar-month-card-hover-bg, var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075)));
-			border-color: var(--hub-calendar-primary, var(--hub-sys-color-primary, #0d6efd));
+			background: #{$month-card-hover-bg};
+			border-color: #{$primary};
 		}
 
 		// Keyboard focus ring for the year-view month card.
 		&:focus-visible {
-			outline: 2px solid var(--hub-calendar-accent);
+			outline: 2px solid #{$accent};
 			outline-offset: -2px;
 		}
 	}
@@ -433,33 +562,23 @@
 		display: block;
 		margin-top: var(--hub-ref-space-2, 0.5rem);
 		font-size: var(--hub-ref-font-size-sm, 0.875rem);
-		color: var(--hub-calendar-muted, var(--hub-sys-text-muted, #6c757d));
+		color: #{$muted};
 	}
 }
 
 // ─── Semantic variants (open set) ────────────────────────────────────────────
-// Opt-in accent via `<hub-calendar variant="success">`. Each known variant
-// re-bases the single `--hub-calendar-accent` slot from the matching ds family;
-// the `-emphasis` / `-subtle` / `-on` roles declared in `:root, :host` recompute
-// from it at runtime (today / selected day, active view button, event chips).
-// The nine canonical variants are emitted here.
-@each $variant in (primary, secondary, success, danger, warning, info, neutral, light, dark) {
-	:host([data-variant='#{$variant}']) {
-		--hub-calendar-accent: var(--hub-sys-color-#{$variant});
-	}
-}
-
-// Open-set escape hatch — any custom accent (e.g. a `brand` the host app adds to
-// the ds `$hub-accents` map) works with ONE CSS rule. Re-base the accent slot for
-// the bare `[data-variant]` and the role family is derived locally from it, so no
-// per-variant boilerplate and no recompilation are needed:
+// A variant is an explicit instruction on this calendar, so it is declared on the
+// host and outranks the application-wide default a `:root` sets — which is the
+// point of asking for one. `:where()` keeps it below anything more targeted the
+// consumer writes. The roles are derived where they are painted, so re-basing the
+// single slot is enough and no per-variant boilerplate is needed:
 //
 //   hub-calendar[data-variant='brand'] { --hub-calendar-accent: var(--hub-sys-color-brand); }
 //
-// This bare block re-derives the family from the slot so a host that sets only
-// `--hub-calendar-accent` (inline or via the rule above) still gets it.
-:host([data-variant]) {
-	--hub-calendar-accent-emphasis: color-mix(in oklch, var(--hub-calendar-accent) 80%, var(--hub-sys-color-ink, #212529));
-	--hub-calendar-accent-subtle: color-mix(in oklch, var(--hub-calendar-accent) 12%, var(--hub-sys-surface-page, #fff));
-	--hub-calendar-accent-on: oklch(from var(--hub-calendar-accent) clamp(0, (0.62 - l) * 1000, 1) 0 h);
+// The nine canonical variants are emitted here; anything else is resolved inline
+// by the component, since no stylesheet rule backs it.
+@each $variant in (primary, secondary, success, danger, warning, info, neutral, light, dark) {
+	:where(:host([data-variant='#{$variant}'])) {
+		--hub-calendar-accent: var(--hub-sys-color-#{$variant});
+	}
 }

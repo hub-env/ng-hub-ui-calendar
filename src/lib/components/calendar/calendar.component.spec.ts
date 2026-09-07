@@ -2,7 +2,7 @@ import { ComponentRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { CalendarEvent } from '../../models/calendar-event';
-import { CalendarViewType } from '../../models/calendar-view';
+import { CalendarViewType, DEFAULT_CALENDAR_CONFIG } from '../../models/calendar-view';
 import { HubCalendarComponent } from './calendar.component';
 
 describe('HubCalendarComponent', () => {
@@ -512,6 +512,288 @@ describe('HubCalendarComponent', () => {
 			fixture.detectChanges();
 
 			expect(weekdayHeaders()[0]).toBe('Wed');
+		});
+	});
+
+	/**
+	 * `initialView`, `slotDuration` and `eventCreationEnabled` were declared, defaulted and
+	 * documented, and no line of the component read any of them — a consumer who set one got
+	 * silence. They were withdrawn in 22.7.0 rather than implemented, so this pins the config
+	 * surface to what the calendar actually honours: a dead option is easy to reintroduce and
+	 * impossible to notice.
+	 */
+	describe('Configuration surface', () => {
+		it('defaults exactly the options the component reads', () => {
+			expect(Object.keys(DEFAULT_CALENDAR_CONFIG).sort()).toEqual([
+				'availableViews',
+				'dayEndHour',
+				'dayStartHour',
+				'dragAndDropEnabled',
+				'showWeekNumbers',
+				'weekStartsOn'
+			]);
+		});
+	});
+
+	/**
+	 * `config.showWeekNumbers` was declared, documented and defaulted, and no line of the
+	 * component ever read it: switching it on changed nothing at all.
+	 */
+	describe('Week numbers (config.showWeekNumbers)', () => {
+		/** Visible text of every week-number cell, top row first. */
+		function weekNumbers(): string[] {
+			return [...(fixture.nativeElement as HTMLElement).querySelectorAll('.hub-calendar__week-number')].map((el) =>
+				(el.textContent ?? '').trim()
+			);
+		}
+
+		function showWeekNumbers(weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6): void {
+			componentRef.setInput('config', { showWeekNumbers: true, ...(weekStartsOn === undefined ? {} : { weekStartsOn }) });
+			fixture.detectChanges();
+		}
+
+		it('renders no week-number column while the option is off', () => {
+			expect(weekNumbers()).toEqual([]);
+			expect((fixture.nativeElement as HTMLElement).querySelectorAll('.hub-calendar__weekday').length).toBe(7);
+		});
+
+		/** July 2026 on a Monday-first grid opens on June 29, ISO week 27, and runs to week 32. */
+		it('numbers each row of the month grid once the option is on', () => {
+			showWeekNumbers(1);
+
+			expect(weekNumbers()).toEqual(['27', '28', '29', '30', '31', '32']);
+		});
+
+		/**
+		 * A Sunday-first grid is one day ahead of ISO-8601, so its rows cannot simply borrow the
+		 * ISO number: the same week that opens on Monday June 29 opens on Sunday June 28 and is
+		 * numbered from its own middle day.
+		 */
+		it('numbers from the configured first day of the week, not from Monday', () => {
+			showWeekNumbers(0);
+
+			expect(weekNumbers()).toEqual(['26', '27', '28', '29', '30', '31']);
+		});
+
+		/** January 2027 opens on a Friday: its first Monday-first row still belongs to 2026. */
+		it('keeps the year-straddling row with the year that owns it', () => {
+			componentRef.setInput('selectedDate', new Date(2027, 0, 15));
+			showWeekNumbers(1);
+
+			expect(weekNumbers().slice(0, 2)).toEqual(['53', '1']);
+		});
+
+		it('widens the grid with a leading track for the column', () => {
+			showWeekNumbers(1);
+			const host = fixture.nativeElement as HTMLElement;
+
+			expect(host.querySelector('.hub-calendar__weekdays--with-week-numbers')).toBeTruthy();
+			expect(host.querySelectorAll('.hub-calendar__week--with-week-numbers').length).toBe(6);
+		});
+
+		it('announces the bare number as a week, in the calendar language', () => {
+			showWeekNumbers(1);
+			const host = fixture.nativeElement as HTMLElement;
+			const header = host.querySelector('.hub-calendar__weekday--week-number') as HTMLElement;
+			const firstCell = host.querySelector('.hub-calendar__week-number') as HTMLElement;
+
+			expect(header.textContent?.trim()).toBe('Wk');
+			expect(header.getAttribute('aria-label')).toBe('Week');
+			expect(firstCell.getAttribute('role')).toBe('rowheader');
+			expect(firstCell.getAttribute('aria-label')).toBe('Week 27');
+
+			componentRef.setInput('locale', 'es');
+			fixture.detectChanges();
+
+			expect(header.textContent?.trim()).toBe('Sem');
+			expect(header.getAttribute('aria-label')).toBe('Semana');
+			expect(firstCell.getAttribute('aria-label')).toBe('Semana 27');
+		});
+	});
+
+	/**
+	 * `CalendarEvent.allDay` was declared and documented as displaying "at the top of day/week
+	 * views", and nothing read it: an all-day event rendered exactly like a timed one, wherever
+	 * the caller happened to have put it in the array. Giving it a tint of its own did not fix
+	 * that either — a chip coloured unlike its neighbours, with nothing saying why, is a riddle.
+	 * What every calendar a reader already knows does instead is give all-day events a *place*:
+	 * a labelled strip above the hour grid in the week and day views, and — where a month grid
+	 * has no room for one — a timed event that states its hour, leaving the hourless ones plain.
+	 */
+	describe('All-day events', () => {
+		const mixedDay: CalendarEvent[] = [
+			{ id: 1, title: 'Standup', start: new Date(2026, 6, 15, 9, 0) },
+			{ id: 2, title: 'Company offsite', start: new Date(2026, 6, 15), allDay: true },
+			{ id: 3, title: 'Retro', start: new Date(2026, 6, 15, 17, 0) }
+		];
+
+		/** Event chips of the July 15 cell (the selected day), in render order. */
+		function chips(): HTMLElement[] {
+			const cell = dayCells().find((c) => c.getAttribute('aria-selected') === 'true') as HTMLElement;
+			return [...cell.querySelectorAll('.hub-calendar__event')] as HTMLElement[];
+		}
+
+		/** Every element matching a selector inside the calendar, in document order. */
+		function query(selector: string): HTMLElement[] {
+			return [...(fixture.nativeElement as HTMLElement).querySelectorAll(selector)] as HTMLElement[];
+		}
+
+		/** Titles of a set of chips, ignoring the hour a month-view chip prints in front. */
+		function titlesOf(elements: HTMLElement[]): (string | undefined)[] {
+			return elements.map((el) => el.querySelector('.hub-calendar__event-title')?.textContent?.trim());
+		}
+
+		/** The hour printed in front of a chip, or `undefined` when it prints none. */
+		function timeOf(chip: HTMLElement): string | undefined {
+			return chip.querySelector('.hub-calendar__event-time')?.textContent?.trim();
+		}
+
+		beforeEach(() => {
+			componentRef.setInput('events', mixedDay);
+			fixture.detectChanges();
+		});
+
+		it('puts the all-day event at the top of the cell, whatever the caller order', () => {
+			expect(titlesOf(chips())).toEqual(['Company offsite', 'Standup', 'Retro']);
+		});
+
+		it('marks the all-day chip, and only it, with its own modifier class', () => {
+			const marked = chips().filter((chip) => chip.classList.contains('hub-calendar__event--all-day'));
+
+			expect(marked.length).toBe(1);
+			expect(titlesOf(marked)).toEqual(['Company offsite']);
+		});
+
+		it('announces the all-day nature, since neither the strip nor a missing hour survives linearization', () => {
+			expect(chips()[0].getAttribute('aria-label')).toBe('Company offsite, All day');
+			expect(chips()[1].getAttribute('aria-label')).toBe('Standup');
+
+			componentRef.setInput('locale', 'es');
+			fixture.detectChanges();
+
+			expect(chips()[0].getAttribute('aria-label')).toBe('Company offsite, Todo el día');
+		});
+
+		/**
+		 * The month grid cannot host a strip — every cell is a stack of bars — so the contrast is
+		 * made the other way round, exactly as FullCalendar, Google Calendar and Outlook make it.
+		 */
+		describe('Month view', () => {
+			it('prints the start hour in front of a timed event and none in front of an all-day one', () => {
+				expect(chips().map(timeOf)).toEqual([undefined, '9:00 AM', '5:00 PM']);
+			});
+
+			it('gives the timed chip its own modifier, so the pair can be dressed separately', () => {
+				const timed = chips().filter((chip) => chip.classList.contains('hub-calendar__event--timed'));
+
+				expect(titlesOf(timed)).toEqual(['Standup', 'Retro']);
+			});
+
+			it('formats the hour in the calendar language rather than the application LOCALE_ID', () => {
+				componentRef.setInput('locale', 'es');
+				fixture.detectChanges();
+
+				expect(chips().map(timeOf)).toEqual([undefined, '9:00', '17:00']);
+			});
+
+			it('prints no hour on a day a multi-day event merely spans', () => {
+				componentRef.setInput('events', [
+					{ id: 4, title: 'Conference', start: new Date(2026, 6, 14, 8, 0), end: new Date(2026, 6, 16, 18, 0) }
+				]);
+				fixture.detectChanges();
+
+				const spanned = query('.hub-calendar__event').map(timeOf);
+
+				// Three cells hold the event; only the one it starts in has an hour to state.
+				expect(spanned).toEqual(['8:00 AM', undefined, undefined]);
+			});
+		});
+
+		/**
+		 * The strip is where the distinction stops needing an explanation: an event drawn in the
+		 * row labelled "all day" *is* an all-day event.
+		 */
+		describe('Week view', () => {
+			beforeEach(() => {
+				componentRef.setInput('view', CalendarViewType.WEEK);
+				fixture.detectChanges();
+			});
+
+			it('draws one all-day strip, labelled in the same margin as the hours', () => {
+				expect(query('.hub-calendar__all-day').length).toBe(1);
+				expect(query('.hub-calendar__all-day-label')[0].textContent?.trim()).toBe('All day');
+			});
+
+			it('places the strip above the hour grid rather than inside it, so it cannot scroll away', () => {
+				const view = query('.hub-calendar__week-view')[0];
+
+				expect([...view.children].map((child) => child.className)).toEqual([
+					'hub-calendar__week-header',
+					'hub-calendar__all-day',
+					'hub-calendar__time-grid'
+				]);
+				expect(query('.hub-calendar__time-grid .hub-calendar__all-day').length).toBe(0);
+			});
+
+			it('lifts the all-day event into the strip and leaves the timed ones in the hour columns', () => {
+				expect(titlesOf(query('.hub-calendar__all-day-cell .hub-calendar__event'))).toEqual(['Company offsite']);
+				expect(titlesOf(query('.hub-calendar__day-events .hub-calendar__event'))).toEqual(['Standup', 'Retro']);
+			});
+
+			it('gives every day of the week its own cell in the strip, so an event stays under its day', () => {
+				const cells = query('.hub-calendar__all-day-cell');
+
+				expect(cells.length).toBe(7);
+				expect(cells.map((cell) => cell.querySelectorAll('.hub-calendar__event').length)).toEqual([
+					0, 0, 0, 1, 0, 0, 0
+				]);
+			});
+
+			/**
+			 * FullCalendar, Google Calendar and Outlook all keep the row drawn on an empty week, and
+			 * so does this: the label stays where the reader learned it, and the hour grid does not
+			 * jump by a row as the week changes.
+			 */
+			it('keeps the strip drawn on a week with no all-day event at all', () => {
+				componentRef.setInput('events', []);
+				fixture.detectChanges();
+
+				expect(query('.hub-calendar__all-day').length).toBe(1);
+				expect(query('.hub-calendar__all-day-cell .hub-calendar__event').length).toBe(0);
+			});
+
+			it('translates the strip label with the rest of the chrome', () => {
+				componentRef.setInput('locale', 'es');
+				fixture.detectChanges();
+
+				expect(query('.hub-calendar__all-day-label')[0].textContent?.trim()).toBe('Todo el día');
+			});
+		});
+
+		describe('Day view', () => {
+			beforeEach(() => {
+				componentRef.setInput('view', CalendarViewType.DAY);
+				fixture.detectChanges();
+			});
+
+			it('places the strip above the hour grid, under the day heading', () => {
+				const view = query('.hub-calendar__day-view')[0];
+
+				expect([...view.children].map((child) => child.className)).toEqual([
+					'hub-calendar__day-view-header',
+					'hub-calendar__all-day',
+					'hub-calendar__time-grid'
+				]);
+			});
+
+			it('lifts the all-day event into the strip and leaves the timed ones in the hour column', () => {
+				expect(titlesOf(query('.hub-calendar__all-day-cell .hub-calendar__event'))).toEqual(['Company offsite']);
+				expect(titlesOf(query('.hub-calendar__day-column .hub-calendar__event'))).toEqual(['Standup', 'Retro']);
+			});
+
+			it('leads the day too, where the promise was written', () => {
+				expect(titlesOf(query('.hub-calendar__event'))).toEqual(['Company offsite', 'Standup', 'Retro']);
+			});
 		});
 	});
 

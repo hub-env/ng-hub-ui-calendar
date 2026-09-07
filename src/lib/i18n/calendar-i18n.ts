@@ -15,6 +15,8 @@
  * - today, week, day, month, year: View labels
  * - previous, next: Navigation labels
  * - allDay: Label for all-day events
+ * - weekAbbr: Header of the week-number column (kept short: it shares the weekday header row)
+ * - weekNumberLabel: Accessible name of a week-number cell; `{count}` is replaced with the number
  * - moreEvents, eventCount: Count labels; `{count}` is replaced with the number
  *
  * @example Adding a new language
@@ -71,6 +73,8 @@ export const CALENDAR_I18N: Record<string, Record<string, any>> = {
 		previous: 'Previous',
 		next: 'Next',
 		allDay: 'All day',
+		weekAbbr: 'Wk',
+		weekNumberLabel: 'Week {count}',
 		moreEvents: '+{count} more',
 		eventCount: '{count} events'
 	},
@@ -103,6 +107,8 @@ export const CALENDAR_I18N: Record<string, Record<string, any>> = {
 		previous: 'Anterior',
 		next: 'Siguiente',
 		allDay: 'Todo el día',
+		weekAbbr: 'Sem',
+		weekNumberLabel: 'Semana {count}',
 		moreEvents: '+{count} más',
 		eventCount: '{count} eventos'
 	}

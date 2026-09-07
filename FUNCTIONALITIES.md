@@ -22,22 +22,31 @@ The library ships one component, `hub-calendar`, plus the two structural directi
 
 ## Events
 
-| Category          | Functionality                                                   | Example Covered |
-| :---------------- | :-------------------------------------------------------------- | :-------------: |
-| **Data**          | Typed `events` input (`CalendarEvent<T>` with a `data` payload) |       ✅        |
-| **Interaction**   | `eventClick` output                                             |       ✅        |
-|                   | `dayClick` output                                               |       ✅        |
-| **Styling hooks** | `eventClass` input (static string or function)                  |       ✅        |
-|                   | Per-event `cssClass` (static string or function)                |       ✅        |
-| **Overflow**      | Month cell renders three events and a localized `+N more` label |       ❌        |
-|                   | Tooltip on an event title clipped by its cell                   |       ✅        |
-| **Drag & drop**   | Native HTML5 drag of an event onto another day                  |       ✅        |
-|                   | `eventDrop` with the previous and the new date                  |       ✅        |
-|                   | Turned off with `config.dragAndDropEnabled: false`              |       ❌        |
+| Category          | Functionality                                                    | Example Covered |
+| :---------------- | :--------------------------------------------------------------- | :-------------: |
+| **Data**          | Typed `events` input (`CalendarEvent<T>` with a `data` payload)  |       ✅        |
+| **Interaction**   | `eventClick` output                                              |       ✅        |
+|                   | `dayClick` output                                                |       ✅        |
+| **Styling hooks** | `eventClass` input (static string or function)                   |       ✅        |
+|                   | Per-event `cssClass` (static string or function)                 |       ✅        |
+| **All day**       | `allDay` events lead their day and carry an `--all-day` modifier |       ✅        |
+|                   | Labelled all-day strip above the week and day hour grids         |       ✅        |
+|                   | The strip is drawn even on a period with no all-day event        |       ✅        |
+|                   | Month view prints a timed event's start time behind a colour dot |       ✅        |
+|                   | Month-view timed chips carry a `--timed` modifier                |       ✅        |
+|                   | Their accessible name appends the localized "all day" label      |       ❌        |
+| **Overflow**      | Month cell renders three events and a localized `+N more` label  |       ❌        |
+|                   | Tooltip on an event title clipped by its cell                    |       ✅        |
+| **Drag & drop**   | Native HTML5 drag of an event onto another day                   |       ✅        |
+|                   | `eventDrop` with the previous and the new date                   |       ✅        |
+|                   | Turned off with `config.dragAndDropEnabled: false`               |       ❌        |
 
 Dropping an event lands it on a **day**, not on a time slot, in all three views that accept a drop. The
 calendar never mutates the `events` array: creating, editing and deleting an event stay in the caller's own
-state, driven by the outputs above.
+state, driven by the outputs above — there is no create-on-empty-slot affordance, which is why 22.7.0
+withdrew the `eventCreationEnabled` option that pretended to govern one. The day and week grids list a
+day's events beside the hour ruler rather than positioning them against it, which is why `slotDuration`
+went the same way.
 
 ## Templates
 
@@ -48,23 +57,26 @@ state, driven by the outputs above.
 
 ## Configuration
 
-| Category        | Functionality                                          | Example Covered |
-| :-------------- | :----------------------------------------------------- | :-------------: |
-| **Week start**  | `weekStartsOn` input                                   |       ✅        |
-|                 | `config.weekStartsOn` used when the input is not bound |       ❌        |
-| **Time grid**   | `config.dayStartHour` / `config.dayEndHour`            |       ✅        |
-| **Views**       | `config.availableViews`                                |       ❌        |
-| **Drag & drop** | `config.dragAndDropEnabled`                            |       ❌        |
+| Category         | Functionality                                                 | Example Covered |
+| :--------------- | :------------------------------------------------------------ | :-------------: |
+| **Week start**   | `weekStartsOn` input                                          |       ✅        |
+|                  | `config.weekStartsOn` used when the input is not bound        |       ❌        |
+| **Week numbers** | `config.showWeekNumbers` draws a leading column in month view |       ✅        |
+|                  | Numbering derived from the configured first day of the week   |       ✅        |
+| **Time grid**    | `config.dayStartHour` / `config.dayEndHour`                   |       ✅        |
+| **Views**        | `config.availableViews`                                       |       ❌        |
+| **Drag & drop**  | `config.dragAndDropEnabled`                                   |       ❌        |
 
 ## Internationalization
 
-| Category        | Functionality                                        | Example Covered |
-| :-------------- | :--------------------------------------------------- | :-------------: |
-| **Bundled**     | `locale` with the bundled `en` and `es` dictionaries |       ✅        |
-|                 | Fallback to English for a locale that is not bundled |       ✅        |
-| **Application** | `HUBUI.CALENDAR.*` through `HubTranslationService`   |       ❌        |
-|                 | Legacy top-level `calendar.*` branch as the fallback |       ❌        |
-|                 | Labels re-render when the dictionary source emits    |       ❌        |
+| Category        | Functionality                                             | Example Covered |
+| :-------------- | :-------------------------------------------------------- | :-------------: |
+| **Bundled**     | `locale` with the bundled `en` and `es` dictionaries      |       ✅        |
+|                 | Fallback to English for a locale that is not bundled      |       ✅        |
+|                 | `weekAbbr` / `weekNumberLabel` for the week-number column |       ❌        |
+| **Application** | `HUBUI.CALENDAR.*` through `HubTranslationService`        |       ❌        |
+|                 | Legacy top-level `calendar.*` branch as the fallback      |       ❌        |
+|                 | Labels re-render when the dictionary source emits         |       ❌        |
 
 ## Accessibility
 
@@ -72,6 +84,7 @@ state, driven by the outputs above.
 | :------------ | :------------------------------------------------------------------------- | :-------------: |
 | **Semantics** | Month view as a labelled `role="grid"` with row / columnheader / gridcell  |       ❌        |
 |               | `aria-selected`, `aria-current="date"` and localized full-date cell labels |       ❌        |
+|               | Week-number cells as `role="rowheader"` announced as "Week N"              |       ❌        |
 |               | `aria-live` header title announcing each period change                     |       ❌        |
 |               | `aria-pressed` view switcher and labelled prev / next buttons              |       ❌        |
 | **Keyboard**  | Roving tabindex on the month grid                                          |       ❌        |
@@ -90,6 +103,12 @@ keyboard equivalent.
 | **Accent**        | `variant` input with the nine canonical accents               |       ✅        |
 |                   | Custom accent read as `--hub-sys-color-<variant>`             |       ✅        |
 | **CSS variables** | `--hub-calendar-*` token overrides                            |       ✅        |
+|                   | Overrides written above the calendar (`:root`, wrapper, host) |       ✅        |
 | **Sass**          | `hub-calendar-theme()` mixin from `ng-hub-ui-calendar/styles` |       ✅        |
+
+No `--hub-calendar-*` token is declared on the `<hub-calendar>` element: each is read where it is
+painted, so a rule written anywhere above the calendar takes effect. The only deliberate exception is
+`variant`, which declares the accent on the element and is wrapped in `:where()` so a more targeted
+consumer rule still wins.
 
 The complete token catalogue lives in [`docs/css-variables-reference.md`](./docs/css-variables-reference.md).

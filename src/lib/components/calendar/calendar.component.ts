@@ -316,6 +316,28 @@ export class HubCalendarComponent<T = any> {
 	readonly todayLabel = computed(() => this.label('today'));
 
 	/**
+	 * Visible text in the left margin of the all-day strip, on the same track as the hours.
+	 * It is the whole explanation the strip needs: an event drawn in the row this labels is
+	 * an all-day event, so the chips themselves carry no badge and no tooltip saying so.
+	 */
+	readonly allDayLabel = computed(() => this.label('allDay'));
+
+	/**
+	 * Formats the start hour the month grid prints in front of a timed event. Bound to the
+	 * `locale` input rather than the application `LOCALE_ID`, like every other label, so one
+	 * calendar localized on its own does not mix two languages inside a single chip.
+	 * An unusable language tag falls back to the runtime default instead of throwing mid-render.
+	 */
+	private readonly timeFormatter = computed(() => {
+		const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
+		try {
+			return new Intl.DateTimeFormat(this.locale(), options);
+		} catch {
+			return new Intl.DateTimeFormat(undefined, options);
+		}
+	});
+
+	/**
 	 * Visible text of each view-switcher button, keyed by the view it selects.
 	 *
 	 * The dictionary already carries `month` / `week` / `day` / `year` under exactly the enum's
@@ -326,6 +348,23 @@ export class HubCalendarComponent<T = any> {
 	readonly viewLabels = computed<Record<string, string>>(() =>
 		Object.fromEntries(this.mergedConfig().availableViews.map((view) => [view, this.label(view)]))
 	);
+
+	/**
+	 * Whether the month grid renders its leading week-number column.
+	 */
+	protected readonly showWeekNumbers = computed(() => this.mergedConfig().showWeekNumbers);
+
+	/**
+	 * Header of the week-number column. Abbreviated because it shares the weekday
+	 * header row, where a full word would widen the column past the numbers it labels;
+	 * the full word reaches assistive technology through `weekColumnLabel`.
+	 */
+	protected readonly weekNumberHeader = computed(() => this.label('weekAbbr'));
+
+	/**
+	 * Accessible name of the week-number column header.
+	 */
+	protected readonly weekColumnLabel = computed(() => this.label('week'));
 
 	/**
 	 * Weeks array for month view.
@@ -527,6 +566,28 @@ export class HubCalendarComponent<T = any> {
 	}
 
 	/**
+	 * Accessible name of an event chip. An all-day event appends the localized
+	 * "all day" label, which is the only way the distinction reaches a screen
+	 * reader: sighted readers get it from the strip the chip sits in, or from the
+	 * absence of an hour in front of it, and neither survives linearization.
+	 * @param event - The event represented by the chip
+	 * @returns Localized accessible name
+	 */
+	getEventAriaLabel(event: CalendarEvent<T>): string {
+		return event.allDay ? `${event.title}, ${this.label('allDay')}` : event.title;
+	}
+
+	/**
+	 * Accessible name of a week-number cell, e.g. "Week 29" — the bare number the
+	 * column shows would be read out with no indication of what it counts.
+	 * @param week - The week the cell heads
+	 * @returns Localized week label
+	 */
+	getWeekNumberLabel(week: CalendarWeek<T>): string {
+		return this.countLabel('weekNumberLabel', week.weekNumber ?? 0);
+	}
+
+	/**
 	 * Localized "+N more" chip shown when a day cell holds more events than it can render.
 	 * @param count - How many events are hidden
 	 * @returns Localized overflow label
@@ -543,6 +604,52 @@ export class HubCalendarComponent<T = any> {
 	 */
 	getEventCountLabel(count: number): string {
 		return this.countLabel('eventCount', count);
+	}
+
+	// =========================================================================
+	// PUBLIC METHODS - EVENT PLACEMENT
+	// =========================================================================
+
+	/**
+	 * All-day events of a day. The week and day views draw these in the strip above the
+	 * hour grid instead of beside the ruler: an event without hours cannot be placed
+	 * against one, and its position in that row is what says so — which is why the chip
+	 * needs no badge, no icon and no tooltip of its own.
+	 * @param day - The day whose events are being placed
+	 * @returns The day's all-day events, in the caller's own order
+	 */
+	getAllDayEvents(day: CalendarDay<T>): CalendarEvent<T>[] {
+		return day.events.filter((event) => !!event.allDay);
+	}
+
+	/**
+	 * Timed events of a day — the complement of `getAllDayEvents`, and what the hour
+	 * grid of the week and day views renders.
+	 * @param day - The day whose events are being placed
+	 * @returns The day's timed events, in the caller's own order
+	 */
+	getTimedEvents(day: CalendarDay<T>): CalendarEvent<T>[] {
+		return day.events.filter((event) => !event.allDay);
+	}
+
+	/**
+	 * Start time printed in front of a timed event in the month grid, where there is no
+	 * room for an all-day strip and the contrast has to be made the other way round: the
+	 * timed event states its hour, the all-day one has none to state.
+	 *
+	 * Empty for an all-day event, and for a day a multi-day event merely spans — printing
+	 * the start time there would name an hour of a different day.
+	 * @param event - The event being drawn
+	 * @param date - The day cell drawing it
+	 * @returns The localized start time, or an empty string when there is none to show
+	 */
+	getEventTime(event: CalendarEvent<T>, date: Date): string {
+		if (event.allDay) {
+			return '';
+		}
+
+		const start = new Date(event.start);
+		return this.isSameDay(start, date) ? this.timeFormatter().format(start) : '';
 	}
 
 	// =========================================================================
@@ -862,7 +969,7 @@ export class HubCalendarComponent<T = any> {
 				currentDate.setDate(currentDate.getDate() + 1);
 			}
 
-			weeks.push({ days: week });
+			weeks.push({ days: week, weekNumber: this.getWeekNumber(week[0].date) });
 			if (weeks.length >= 6) break;
 		}
 
@@ -953,12 +1060,34 @@ export class HubCalendarComponent<T = any> {
 	 * @returns Array of events occurring on that date
 	 */
 	private getEventsForDate(date: Date): CalendarEvent<T>[] {
-		return this.events().filter((event) => {
+		const onThatDate = this.events().filter((event) => {
 			const eventStart = this.startOfDay(new Date(event.start));
 			const eventEnd = event.end ? this.endOfDay(new Date(event.end)) : eventStart;
 			const checkDate = this.startOfDay(new Date(date));
 			return checkDate >= eventStart && checkDate <= eventEnd;
 		});
+
+		// All-day events lead the cell, as the `allDay` contract promises: partitioning
+		// keeps the caller's order inside each group, so a list already sorted by start
+		// time stays sorted.
+		return [...onThatDate.filter((event) => event.allDay), ...onThatDate.filter((event) => !event.allDay)];
+	}
+
+	/**
+	 * Week number of the week containing the given date, generalized from ISO-8601:
+	 * the week is numbered within the year of its middle day (its start plus three),
+	 * which for a Monday-start week is exactly the Thursday ISO-8601 anchors on. Deriving
+	 * it from the configured first day of the week is what keeps the column from
+	 * disagreeing with the row it labels when a calendar starts on Sunday.
+	 * @param date - Any date inside the week
+	 * @returns The 1-based week number
+	 */
+	private getWeekNumber(date: Date): number {
+		const anchor = this.startOfDay(this.addDays(this.startOfWeek(date), 3));
+		const firstOfYear = this.startOfDay(new Date(anchor.getFullYear(), 0, 1));
+		// Rounding absorbs the hour a daylight-saving shift adds to or removes from the span.
+		const dayOfYear = Math.round((anchor.getTime() - firstOfYear.getTime()) / 86400000) + 1;
+		return Math.floor((dayOfYear - 1) / 7) + 1;
 	}
 
 	/**

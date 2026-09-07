@@ -51,7 +51,16 @@
 <!-- Month View -->
 @if (view() === 'month') {
 	<div class="hub-calendar__month" role="grid" [attr.aria-label]="monthGridLabel()">
-		<div class="hub-calendar__weekdays" role="row">
+		<div class="hub-calendar__weekdays" [class.hub-calendar__weekdays--with-week-numbers]="showWeekNumbers()" role="row">
+			@if (showWeekNumbers()) {
+				<div
+					class="hub-calendar__weekday hub-calendar__weekday--week-number"
+					role="columnheader"
+					[attr.aria-label]="weekColumnLabel()"
+				>
+					{{ weekNumberHeader() }}
+				</div>
+			}
 			@for (day of weekdayLabels(); track day; let i = $index) {
 				<div class="hub-calendar__weekday" role="columnheader" [attr.aria-label]="weekdayFullLabels()[i]">
 					{{ day }}
@@ -60,7 +69,12 @@
 		</div>
 		<div class="hub-calendar__weeks" role="rowgroup">
 			@for (week of weeks(); track $index) {
-				<div class="hub-calendar__week" role="row">
+				<div class="hub-calendar__week" [class.hub-calendar__week--with-week-numbers]="showWeekNumbers()" role="row">
+					@if (showWeekNumbers()) {
+						<div class="hub-calendar__week-number" role="rowheader" [attr.aria-label]="getWeekNumberLabel(week)">
+							{{ week.weekNumber }}
+						</div>
+					}
 					@for (day of week.days; track day.date.getTime()) {
 						<div
 							class="hub-calendar__day"
@@ -91,7 +105,9 @@
 											role="button"
 											tabindex="0"
 											[class]="getEventClass(event)"
-											[attr.aria-label]="event.title"
+											[class.hub-calendar__event--all-day]="!!event.allDay"
+											[class.hub-calendar__event--timed]="!event.allDay"
+											[attr.aria-label]="getEventAriaLabel(event)"
 											[hubOverflowTooltip]="event.title"
 											[attr.draggable]="mergedConfig().dragAndDropEnabled"
 											(click)="onEventClick(event, $event)"
@@ -104,6 +120,12 @@
 													*ngTemplateOutlet="eventTemplate(); context: { event: event }"
 												></ng-container>
 											} @else {
+												@if (!event.allDay) {
+													<span class="hub-calendar__event-dot" aria-hidden="true"></span>
+												}
+												@if (getEventTime(event, day.date); as time) {
+													<span class="hub-calendar__event-time">{{ time }}</span>
+												}
 												<span class="hub-calendar__event-title">{{ event.title }}</span>
 											}
 										</div>
@@ -124,6 +146,49 @@
 <!-- Week View -->
 @if (view() === 'week') {
 	<div class="hub-calendar__week-view">
+		<div class="hub-calendar__week-header">
+			<div class="hub-calendar__time-gutter" aria-hidden="true"></div>
+			@for (day of weekDays(); track day.date.getTime()) {
+				<div class="hub-calendar__day-header" [class.hub-calendar__day-header--today]="day.isToday">
+					<span class="hub-calendar__day-name">{{ getWeekdayLabel(day.date) }}</span>
+					<span class="hub-calendar__day-number">{{ day.date | date: 'd' }}</span>
+				</div>
+			}
+		</div>
+		<div class="hub-calendar__all-day">
+			<div class="hub-calendar__all-day-label">{{ allDayLabel() }}</div>
+			@for (day of weekDays(); track day.date.getTime()) {
+				<div
+					class="hub-calendar__all-day-cell"
+					(dragover)="onDragOver($event)"
+					(dragenter)="onDragEnter($event)"
+					(dragleave)="onDragLeave($event)"
+					(drop)="onDrop(day, $event)"
+				>
+					@for (event of getAllDayEvents(day); track event.id || $index) {
+						<div
+							class="hub-calendar__event hub-calendar__event--all-day"
+							role="button"
+							tabindex="0"
+							[class]="getEventClass(event)"
+							[attr.aria-label]="getEventAriaLabel(event)"
+							[hubOverflowTooltip]="event.title"
+							[attr.draggable]="mergedConfig().dragAndDropEnabled"
+							(click)="onEventClick(event, $event)"
+							(keydown)="onEventKeydown(event, $event)"
+							(dragstart)="onDragStart(event, $event)"
+							(dragend)="onDragEnd($event)"
+						>
+							@if (eventTemplate()) {
+								<ng-container *ngTemplateOutlet="eventTemplate(); context: { event: event }"></ng-container>
+							} @else {
+								<span class="hub-calendar__event-title">{{ event.title }}</span>
+							}
+						</div>
+					}
+				</div>
+			}
+		</div>
 		<div class="hub-calendar__time-grid">
 			<div class="hub-calendar__time-column">
 				@for (hour of hours(); track hour) {
@@ -140,18 +205,14 @@
 					(dragleave)="onDragLeave($event)"
 					(drop)="onDrop(day, $event)"
 				>
-					<div class="hub-calendar__day-header">
-						<span class="hub-calendar__day-name">{{ getWeekdayLabel(day.date) }}</span>
-						<span class="hub-calendar__day-number">{{ day.date | date: 'd' }}</span>
-					</div>
 					<div class="hub-calendar__day-events">
-						@for (event of day.events; track event.id || $index) {
+						@for (event of getTimedEvents(day); track event.id || $index) {
 							<div
 								class="hub-calendar__event"
 								role="button"
 								tabindex="0"
 								[class]="getEventClass(event)"
-								[attr.aria-label]="event.title"
+								[attr.aria-label]="getEventAriaLabel(event)"
 								[hubOverflowTooltip]="event.title"
 								[attr.draggable]="mergedConfig().dragAndDropEnabled"
 								(click)="onEventClick(event, $event)"
@@ -179,6 +240,43 @@
 		<div class="hub-calendar__day-view-header">
 			<h3>{{ currentDayLabel() }}</h3>
 		</div>
+		<div class="hub-calendar__all-day">
+			<div class="hub-calendar__all-day-label">{{ allDayLabel() }}</div>
+			<div
+				class="hub-calendar__all-day-cell"
+				(dragover)="onDragOver($event)"
+				(dragenter)="onDragEnter($event)"
+				(dragleave)="onDragLeave($event)"
+				(drop)="onDrop(currentDay(), $event)"
+			>
+				@for (event of getAllDayEvents(currentDay()); track event.id || $index) {
+					<div
+						class="hub-calendar__event hub-calendar__event--all-day"
+						role="button"
+						tabindex="0"
+						[class]="getEventClass(event)"
+						[attr.aria-label]="getEventAriaLabel(event)"
+						[hubOverflowTooltip]="event.title"
+						[attr.draggable]="mergedConfig().dragAndDropEnabled"
+						(click)="onEventClick(event, $event)"
+						(keydown)="onEventKeydown(event, $event)"
+						(dragstart)="onDragStart(event, $event)"
+						(dragend)="onDragEnd($event)"
+					>
+						@if (eventTemplate()) {
+							<ng-container *ngTemplateOutlet="eventTemplate(); context: { event: event }"></ng-container>
+						} @else {
+							<div class="hub-calendar__event-content">
+								<span class="hub-calendar__event-title">{{ event.title }}</span>
+								@if (event.description) {
+									<span class="hub-calendar__event-desc">{{ event.description }}</span>
+								}
+							</div>
+						}
+					</div>
+				}
+			</div>
+		</div>
 		<div class="hub-calendar__time-grid">
 			<div class="hub-calendar__time-column">
 				@for (hour of hours(); track hour) {
@@ -192,13 +290,13 @@
 				(dragleave)="onDragLeave($event)"
 				(drop)="onDrop(currentDay(), $event)"
 			>
-				@for (event of currentDay().events; track event.id || $index) {
+				@for (event of getTimedEvents(currentDay()); track event.id || $index) {
 					<div
 						class="hub-calendar__event"
 						role="button"
 						tabindex="0"
 						[class]="getEventClass(event)"
-						[attr.aria-label]="event.title"
+						[attr.aria-label]="getEventAriaLabel(event)"
 						[hubOverflowTooltip]="event.title"
 						[attr.draggable]="mergedConfig().dragAndDropEnabled"
 						(click)="onEventClick(event, $event)"

@@ -69,6 +69,8 @@ This library is part of the **Hub UI** ecosystem:
 ## ✨ Features
 
 - **Multiple View Types**: Month, Week, Day, and Year views
+- **Week Numbers**: optional leading column in month view (`config.showWeekNumbers`), numbered from the configured first day of the week
+- **All-Day Events**: `allDay` events get a labelled strip of their own above the week and day hour grids; in month view the contrast is inverted instead — timed events show their start time behind a coloured dot, all-day ones keep the filled bar
 - **Native Drag & Drop**: Reschedule events by dragging to different days
 - **Custom Templates**: Full control over event and day cell rendering
 - **Internationalization**: Built-in English and Spanish, extensible for any language
@@ -234,15 +236,12 @@ import { CalendarConfig, CalendarViewType } from 'ng-hub-ui-calendar';
 })
 export class ConfigurationComponent {
 	calendarConfig: CalendarConfig = {
-		initialView: CalendarViewType.WEEK,
 		weekStartsOn: 1, // Monday
 		showWeekNumbers: true,
 		dayStartHour: 8,
 		dayEndHour: 18,
-		slotDuration: 30,
 		availableViews: [CalendarViewType.MONTH, CalendarViewType.WEEK, CalendarViewType.DAY],
-		dragAndDropEnabled: true,
-		eventCreationEnabled: true
+		dragAndDropEnabled: true
 	};
 }
 ```
@@ -331,21 +330,21 @@ export class EventHandlingComponent {
 
 ### Inputs
 
-| Input          | Type                 | Default      | Description                              |
-| -------------- | -------------------- | ------------ | ---------------------------------------- |
-| `events`       | `CalendarEvent[]`    | `[]`         | Events to display on the calendar        |
-| `view`         | `CalendarViewType`   | `MONTH`      | Current view type (two-way bindable)     |
-| `selectedDate` | `Date`               | `new Date()` | Selected/focused date (two-way bindable) |
-| `config`       | `CalendarConfig`     | `{}`         | Configuration options                    |
-| `eventClass`   | `string \| Function` | -            | CSS class(es) for events                 |
-| `weekStartsOn` | `0-6`                | `config.weekStartsOn` | Day week starts on (0=Sunday); overrides `config.weekStartsOn` when set |
-| `locale`       | `string`             | `'en'`       | Language code for translations           |
-| `variant`      | `string`             | `'primary'`  | Semantic accent: `primary` / `secondary` / `success` / `danger` / `warning` / `info` / `neutral` / `light` / `dark`, or any `--hub-sys-color-*` name |
+| Input          | Type                 | Default               | Description                                                                                                                                          |
+| -------------- | -------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `events`       | `CalendarEvent[]`    | `[]`                  | Events to display on the calendar                                                                                                                    |
+| `view`         | `CalendarViewType`   | `MONTH`               | Current view type (two-way bindable)                                                                                                                 |
+| `selectedDate` | `Date`               | `new Date()`          | Selected/focused date (two-way bindable)                                                                                                             |
+| `config`       | `CalendarConfig`     | `{}`                  | Configuration options                                                                                                                                |
+| `eventClass`   | `string \| Function` | -                     | CSS class(es) for events                                                                                                                             |
+| `weekStartsOn` | `0-6`                | `config.weekStartsOn` | Day week starts on (0=Sunday); overrides `config.weekStartsOn` when set                                                                              |
+| `locale`       | `string`             | `'en'`                | Language code for translations                                                                                                                       |
+| `variant`      | `string`             | `'primary'`           | Semantic accent: `primary` / `secondary` / `success` / `danger` / `warning` / `info` / `neutral` / `light` / `dark`, or any `--hub-sys-color-*` name |
 
 ### Outputs
 
-| Output               | Type                               | Description                                                        |
-| -------------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| Output               | Type                               | Description                                                         |
+| -------------------- | ---------------------------------- | ------------------------------------------------------------------- |
 | `eventClick`         | `CalendarEvent`                    | Emitted when an event is clicked                                    |
 | `dayClick`           | `CalendarDay`                      | Emitted when a day cell is clicked                                  |
 | `eventDrop`          | `{ event, newDate, previousDate }` | Emitted when an event is dropped on another day                     |
@@ -376,6 +375,11 @@ interface CalendarDay<T = any> {
 	isSelected?: boolean;
 }
 
+interface CalendarWeek<T = any> {
+	days: CalendarDay<T>[];
+	weekNumber?: number; // always filled in; config.showWeekNumbers only decides whether it is drawn
+}
+
 enum CalendarViewType {
 	MONTH = 'month',
 	WEEK = 'week',
@@ -384,15 +388,12 @@ enum CalendarViewType {
 }
 
 interface CalendarConfig {
-	initialView?: CalendarViewType;
 	weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
 	showWeekNumbers?: boolean;
 	dayStartHour?: number;
 	dayEndHour?: number;
-	slotDuration?: number;
 	availableViews?: CalendarViewType[];
 	dragAndDropEnabled?: boolean;
-	eventCreationEnabled?: boolean;
 }
 ```
 
@@ -402,6 +403,8 @@ interface CalendarConfig {
 - **Roving tabindex — selection follows focus**: the selected day is the single tabbable cell, so moving focus with the keyboard also moves the selection, matching the header prev/next navigation model.
 - **Keyboard navigation**: Arrow keys move by day/week, `Home`/`End` jump to the start/end of the week, `PageUp`/`PageDown` move to the same day in the previous/next month (clamped to the target month, emitting `dateChange`), and `Enter`/`Space` activate the day exactly like a click (`dayClick`).
 - **Real controls**: event chips (month/week/day views) and year-view month cards are keyboard-activatable buttons (`role="button"`, `tabindex="0"`, `Enter`/`Space`); the icon-only prev/next header buttons carry localized `aria-label`s and the view switcher exposes `aria-pressed`.
+- **Week numbers**: each week-number cell is a `role="rowheader"` announced as "Week 27" (localized), because the bare number alone says nothing about what it counts; the column header carries the full word as its `aria-label`.
+- **All-day events**: an all-day chip appends the localized "all day" label to its accessible name. A sighted reader gets the distinction from the strip the chip sits in, or from the absence of an hour in front of it, and neither survives linearization.
 - **Pointer-only drag and drop**: rescheduling events by drag-and-drop currently has no keyboard equivalent.
 
 ## 🎨 Styling
@@ -409,6 +412,19 @@ interface CalendarConfig {
 Full CSS variable catalog:
 
 - [`./docs/css-variables-reference.md`](./docs/css-variables-reference.md)
+
+### Where to write the override
+
+**Anywhere above the calendar.** Every `--hub-calendar-*` token is read where it is painted, as
+`var(--token, <default>)`, and none is declared on the `<hub-calendar>` element — so a value set on
+`:root`, on a wrapper, on `hub-calendar` or on `.hub-calendar` all reach the grid, and the closest one
+wins as CSS normally decides. Before 22.7.0 the family was declared on the host, and a declaration on
+an element beats anything inherited from an ancestor: the rules below were printed here and did
+nothing. See `BREAKING_CHANGES.md`.
+
+The exception is `variant`, which declares `--hub-calendar-accent` on the element on purpose — asking
+for a variant is an instruction about that one calendar. It is wrapped in `:where()`, so a rule of
+yours that targets the calendar more precisely still wins.
 
 ### Semantic Accent
 
@@ -420,10 +436,10 @@ The `variant` input re-bases a single accent token, `--hub-calendar-accent`, whi
 
 Two accent tokens back this behaviour:
 
-| Variable                       | Default                                                         | Description                                |
-| ------------------------------ | -------------------------------------------------------------- | ------------------------------------------ |
-| `--hub-calendar-accent`        | `var(--hub-sys-color-primary, #0d6efd)`                        | Base accent (active button, event chips)   |
-| `--hub-calendar-accent-subtle` | `color-mix(in oklch, var(--hub-calendar-accent) 12%, var(--hub-sys-surface-page, #fff))` | Subtle accent (selected day background)    |
+| Variable                       | Default                                                                                  | Description                              |
+| ------------------------------ | ---------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `--hub-calendar-accent`        | `var(--hub-sys-color-primary, #0d6efd)`                                                  | Base accent (active button, event chips) |
+| `--hub-calendar-accent-subtle` | `color-mix(in oklch, var(--hub-calendar-accent) 12%, var(--hub-sys-surface-page, #fff))` | Subtle accent (selected day background)  |
 
 ### `hub-calendar-theme()` Sass Mixin
 
@@ -433,11 +449,7 @@ Theme a calendar in a single include. Every parameter is optional and defaults t
 @use 'ng-hub-ui-calendar/styles/mixins/calendar-theme' as *;
 
 .planner {
-	@include hub-calendar-theme(
-		$accent: var(--hub-sys-color-info),
-		$day-min-height: 110px,
-		$event-border-radius: 999px
-	);
+	@include hub-calendar-theme($accent: var(--hub-sys-color-info), $day-min-height: 110px, $event-border-radius: 999px);
 }
 ```
 

@@ -48,7 +48,6 @@ export enum CalendarViewType {
  * @example
  * ```typescript
  * const config: CalendarConfig = {
- *   initialView: CalendarViewType.WEEK,
  *   weekStartsOn: 1, // Monday
  *   showWeekNumbers: true,
  *   dayStartHour: 8,
@@ -57,12 +56,6 @@ export enum CalendarViewType {
  * ```
  */
 export interface CalendarConfig {
-	/**
-	 * Initial view to display when the calendar loads.
-	 * @default CalendarViewType.MONTH
-	 */
-	initialView?: CalendarViewType;
-
 	/**
 	 * Day the week starts on.
 	 * 0 = Sunday, 1 = Monday, 2 = Tuesday, etc.
@@ -92,13 +85,6 @@ export interface CalendarConfig {
 	dayEndHour?: number;
 
 	/**
-	 * Duration of each time slot in minutes.
-	 * Used in day and week views.
-	 * @default 60
-	 */
-	slotDuration?: number;
-
-	/**
 	 * Available views to show in the view switcher.
 	 * Controls which view buttons are displayed.
 	 * @default [CalendarViewType.MONTH, CalendarViewType.WEEK, CalendarViewType.DAY, CalendarViewType.YEAR]
@@ -111,12 +97,6 @@ export interface CalendarConfig {
 	 * @default true
 	 */
 	dragAndDropEnabled?: boolean;
-
-	/**
-	 * Whether to enable creating events by clicking on empty slots.
-	 * @default true
-	 */
-	eventCreationEnabled?: boolean;
 }
 
 /**
@@ -124,13 +104,10 @@ export interface CalendarConfig {
  * These are applied when no config is provided.
  */
 export const DEFAULT_CALENDAR_CONFIG: Required<CalendarConfig> = {
-	initialView: CalendarViewType.MONTH,
 	weekStartsOn: 0,
 	showWeekNumbers: false,
 	dayStartHour: 0,
 	dayEndHour: 24,
-	slotDuration: 60,
 	availableViews: [CalendarViewType.MONTH, CalendarViewType.WEEK, CalendarViewType.DAY, CalendarViewType.YEAR],
-	dragAndDropEnabled: true,
-	eventCreationEnabled: true
+	dragAndDropEnabled: true
 };

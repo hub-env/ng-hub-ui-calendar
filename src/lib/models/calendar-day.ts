@@ -74,8 +74,9 @@ export interface CalendarWeek<T = any> {
 	days: CalendarDay<T>[];
 
 	/**
-	 * Week number of the year (1-52).
-	 * Only populated if showWeekNumbers is enabled in config.
+	 * Week number of the year the month grid assigns to this row.
+	 * Always populated; `config.showWeekNumbers` only decides whether the
+	 * calendar renders it as a leading column.
 	 */
 	weekNumber?: number;
 }

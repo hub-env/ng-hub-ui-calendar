@@ -2,6 +2,93 @@
 
 All notable changes to this project will be documented in this file.
 
+## [22.7.0] - 2026-09-07
+
+### Added
+
+- **`config.showWeekNumbers` draws the column it always promised.** The option was declared, defaulted
+  and documented — the playground even described the column it would add — and no line of the component
+  read it, so a consumer who switched it on saw the same grid as before and had nothing to debug. Month
+  view now renders a leading week-number column when the option is on: a `rowheader` cell per week row,
+  under a column header in the weekday row. The numbering generalizes ISO-8601 instead of hardcoding it —
+  a week is numbered within the year of its middle day, which for a Monday-first grid is exactly the
+  Thursday ISO-8601 anchors on — so a calendar that starts on Sunday gets numbers that agree with the rows
+  they label rather than with a Monday grid it is not drawing. The column is off by default, and its width
+  is the new `--hub-calendar-week-number-width` token (`3rem`).
+
+- **Two dictionary keys for the new column**, `weekAbbr` (the short column header) and `weekNumberLabel`
+  (the accessible name of a cell, carrying a `{count}` placeholder). Both ship filled in English and
+  Spanish, both are reachable from an application dictionary under `HUBUI.CALENDAR.*`, and an unfilled key
+  falls back to English rather than rendering blank — the bare number alone would be announced with no
+  indication of what it counts.
+
+- **`CalendarWeek.weekNumber` is populated.** It was part of the public type and never filled in, so a
+  consumer reading the weeks could not get the number even by computing around the missing column.
+
+- **An all-day strip above the week and day grids.** Week and day views now open with a row of their
+  own above the hour ruler, separated by a rule, labelled "all day" in the same left margin the hours
+  use, and all-day events are drawn there instead of in the hour columns. That position is the whole
+  explanation: an event sitting in that row _is_ an all-day event, which is why the chip carries no
+  badge, no icon and no tooltip saying so — the arrangement FullCalendar, Google Calendar, Outlook
+  Web, Kendo and Syncfusion all landed on. The strip is drawn whether or not the period holds an
+  all-day event, so the label stays where the reader learned it and the hour grid does not shift by a
+  row from one week to the next; it sits outside the scrolling area, so it does not slide away as the
+  day is scrolled. The label is the existing `allDay` dictionary key, so it is already translated in
+  both bundled languages and overridable from an application dictionary. Two new tokens size the row:
+  `--hub-calendar-time-column-width` (`60px`, shared with the hour ruler so the label lines up with
+  it) and `--hub-calendar-all-day-min-height` (`2.5rem`).
+
+### Changed
+
+- **`CalendarEvent.allDay` now decides something.** The flag was declared, documented as displaying
+  "at the top of day/week views" and shipped with a translated `allDay` label nothing ever rendered:
+  an all-day event drew exactly like a timed one, wherever the caller had left it in the array. It
+  now decides placement. In the week and day views the event moves into the all-day strip described
+  above. In the month view, where a grid of stacked bars leaves no room for a strip, the contrast is
+  made the other way round, as every calendar named above makes it: **a timed event prints its start
+  time in front of the title, behind a dot in the event colour, on no fill of its own; an all-day
+  event keeps the filled bar and states no time.** All-day events still lead their day — the
+  partition keeps the caller's order inside each group, so a list already sorted by start time stays
+  sorted — still carry a `hub-calendar__event--all-day` modifier class, and still append the
+  localized "all day" label to their accessible name, which is the only way a distinction made of
+  position and typography reaches a screen reader. The start time is formatted with the `locale`
+  input rather than the application `LOCALE_ID`, like every other label, and is printed only on the
+  day the event starts: on a later day of a multi-day event it would name an hour of a different day.
+
+- **Month-view timed chips carry a `hub-calendar__event--timed` modifier**, the counterpart of
+  `--all-day`, so the two can be dressed apart from a consumer stylesheet. See `BREAKING_CHANGES.md`:
+  the default look of a timed chip in the month view changes, and that is every chip most calendars
+  draw.
+
+### Fixed
+
+- **The `--hub-calendar-*` tokens could not be set from the application.** The whole family was
+  declared in a single `:root, :host` block, and the component uses emulated encapsulation: the
+  build rewrote that into a `:root` half compiled to a selector matching nothing, and a `:host` half
+  landing on the `<hub-calendar>` element itself. A declaration on an element beats any value
+  inherited from an ancestor whatever its specificity, so an application setting a token in its own
+  `:root` saw nothing happen, and even the `hub-calendar { … }` recipe both READMEs print lost to it.
+  The defaults are now read where they are painted, as `var(--token, <default>)`, so nothing is
+  claimed on the host and a rule written anywhere above the calendar takes effect — the same fix
+  applied to `ng-hub-ui-action-sheet` and `ng-hub-ui-milestones`. Every default keeps its full chain
+  (component token → sys token → ref token → literal), and the derived accent roles now resolve at
+  the point of use, so re-basing `--hub-calendar-accent` alone moves the today tint, the selected day
+  and the chips with it. Rendering is unchanged; what changes is who wins. See `BREAKING_CHANGES.md`.
+
+### Removed
+
+- **`config.initialView`, `config.slotDuration` and `config.eventCreationEnabled` are gone.** All three
+  were declared in `CalendarConfig`, given defaults in `DEFAULT_CALENDAR_CONFIG` and written up in both
+  READMEs, and not one of them was read anywhere in the component. Setting them did nothing, silently,
+  with no way for a consumer to tell why. They were withdrawn rather than implemented because each is a
+  redesign, not an omission: `slotDuration` presumes a time grid that positions events against the hour
+  ruler, and this calendar renders a day's events as a flat list beside a decorative ruler — a finer
+  ruler would promise a resolution the drop and the layout do not have; `eventCreationEnabled` presumes
+  creation affordances and an output the component does not have, and the calendar deliberately never
+  mutates the events array; and `initialView` would be a second source of truth for state `view` already
+  owns as a two-way `model()`, with no way to tell an unbound `[view]` from one explicitly set to month.
+  `[view]` is the migration for the third. See `BREAKING_CHANGES.md`.
+
 ## [22.6.4] - 2026-09-06
 
 ### Fixed
