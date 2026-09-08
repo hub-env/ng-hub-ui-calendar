@@ -528,12 +528,11 @@ All notable changes to this project will be documented in this file.
 
 - Replaced the uniform `padding` shorthands (`--hub-calendar-day-padding`, `--hub-calendar-header-padding`, `--hub-calendar-month-card-padding`) with the canonical directional `-padding-x` / `-padding-y` tokens. No visual change. **BREAKING**: set the `-x`/`-y` tokens instead of the removed shorthand.
 
-## [22.0.0] - 2026-03-10
+## [22.0.0] - 2026-06-17
 
 ### Changed
 
-- **BREAKING CHANGE:** Renamed the global `src/lib/styles/base.scss` file to `src/lib/styles/calendar.scss`.
-- Added host class `.hub-calendar` directly to the `hub-calendar` element for better encapsulation.
+- Aligned with Angular 22.
 
 ## [21.1.1] - 2026-03-19
 
@@ -552,6 +551,13 @@ All notable changes to this project will be documented in this file.
   intrinsic content width from expanding grid columns beyond their allotted space.
 - Added `width: 100%; max-width: 100%; box-sizing: border-box` to event elements to
   ensure proper clipping within day cell boundaries.
+
+## [21.1.0] - 2026-03-10
+
+### Changed
+
+- **BREAKING CHANGE:** Renamed the global `src/lib/styles/base.scss` file to `src/lib/styles/calendar.scss`.
+- Added host class `.hub-calendar` directly to the `hub-calendar` element for better encapsulation.
 
 ## [21.0.0] - 2026-03-09
 
