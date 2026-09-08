@@ -48,7 +48,7 @@ import { Directive, inject, TemplateRef } from '@angular/core';
 	selector: '[dayCellTpt]',
 	standalone: true
 })
-export class DayCellTemplateDirective {
+export class HubCalendarDayCellTemplateDirective {
 	/**
 	 * Reference to the template that will be used to render day cells.
 	 * Injected automatically when the directive is applied to an ng-template.

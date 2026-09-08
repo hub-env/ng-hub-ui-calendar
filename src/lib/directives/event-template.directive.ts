@@ -40,7 +40,7 @@ import { Directive, inject, TemplateRef } from '@angular/core';
 	selector: '[eventTpt]',
 	standalone: true
 })
-export class EventTemplateDirective {
+export class HubCalendarEventTemplateDirective {
 	/**
 	 * Reference to the template that will be used to render events.
 	 * Injected automatically when the directive is applied to an ng-template.

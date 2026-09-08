@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [22.8.0] - 2026-09-08
+
+### Changed
+
+- **BREAKING — the two template directives are renamed `HubCalendarDayCellTemplateDirective` and
+  `HubCalendarEventTemplateDirective`.** `EventTemplateDirective` is a name any application might
+  pick for a directive of its own, and an unprefixed export takes it out of the consumer's hands: a
+  file that imports ours and declares one of its own has two bindings on a single identifier and has
+  to alias its way out. The prefix carries the library's own name as well, because `Hub` alone does
+  not say enough — an event template is exactly the sort of thing several packages in this family
+  will want to offer, and `HubEventTemplateDirective` in an import list gives the reader nothing to
+  tell them apart with. The selectors, `[eventTpt]` and `[dayCellTpt]`, are untouched, so no template
+  changes. Both old names stay exported as deprecated aliases resolving to the same classes and are
+  removed in 23.0.0. See `BREAKING_CHANGES.md`.
+
+- **`ng-hub-ui-ds` is declared as an optional peer dependency, `>=22.0.0`.** The stylesheet has read
+  `--hub-sys-*` tokens for several releases and every read carries its own fallback, so nothing about
+  the rendering changes either way; what was missing was the manifest saying so. A package manager
+  could not warn that a `ng-hub-ui-ds` older than the `--hub-ref-*` / `--hub-sys-*` architecture would
+  leave the calendar themed by its fallbacks, and a reader of the manifest had no way to learn that
+  installing the token package is what turns the theme on. `peerDependenciesMeta` marks it optional,
+  so an installation without it stays clean.
+
 ## [22.7.0] - 2026-09-07
 
 ### Added

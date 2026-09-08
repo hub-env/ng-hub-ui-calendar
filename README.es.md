@@ -81,6 +81,8 @@ Esta librería es parte del ecosistema **Hub UI**:
 npm install ng-hub-ui-calendar ng-hub-ui-utils
 ```
 
+`ng-hub-ui-ds` es una peer dependency **opcional** (`>=22.0.0`). Instálala para dar al calendario la paleta compartida de tokens `--hub-sys-*` y el modo oscuro; sin ella cada lectura de token cae en su valor por defecto y el calendario se dibuja igual.
+
 ## 🚀 Inicio Rápido
 
 ```typescript
@@ -164,11 +166,15 @@ export class ViewTypesComponent {
 ### Plantillas Personalizadas
 
 ```typescript
-import { HubCalendarComponent, EventTemplateDirective, DayCellTemplateDirective } from 'ng-hub-ui-calendar';
+import {
+	HubCalendarComponent,
+	HubCalendarEventTemplateDirective,
+	HubCalendarDayCellTemplateDirective
+} from 'ng-hub-ui-calendar';
 
 @Component({
 	standalone: true,
-	imports: [HubCalendarComponent, EventTemplateDirective, DayCellTemplateDirective],
+	imports: [HubCalendarComponent, HubCalendarEventTemplateDirective, HubCalendarDayCellTemplateDirective],
 	template: `
 		<hub-calendar [events]="events()">
 			<!-- Plantilla de Evento Personalizada -->

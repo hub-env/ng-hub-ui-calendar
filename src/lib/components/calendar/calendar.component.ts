@@ -23,8 +23,8 @@ import {
 } from '@angular/core';
 import { HubOverflowTooltipDirective, HubTooltipDirective, HubTranslationService } from 'ng-hub-ui-utils';
 
-import { DayCellTemplateDirective } from '../../directives/day-cell-template.directive';
-import { EventTemplateDirective } from '../../directives/event-template.directive';
+import { HubCalendarDayCellTemplateDirective } from '../../directives/day-cell-template.directive';
+import { HubCalendarEventTemplateDirective } from '../../directives/event-template.directive';
 import { CALENDAR_I18N } from '../../i18n/calendar-i18n';
 import { CalendarDay, CalendarMonth, CalendarWeek } from '../../models/calendar-day';
 import { CalendarEvent, CalendarEventPlacement } from '../../models/calendar-event';
@@ -322,13 +322,13 @@ export class HubCalendarComponent<T = any> {
 	 * Custom template for rendering events.
 	 * Use with [eventTpt] directive.
 	 */
-	readonly eventTemplate = contentChild(EventTemplateDirective, { read: TemplateRef });
+	readonly eventTemplate = contentChild(HubCalendarEventTemplateDirective, { read: TemplateRef });
 
 	/**
 	 * Custom template for rendering day cells.
 	 * Use with [dayCellTpt] directive.
 	 */
-	readonly dayCellTemplate = contentChild(DayCellTemplateDirective, { read: TemplateRef });
+	readonly dayCellTemplate = contentChild(HubCalendarDayCellTemplateDirective, { read: TemplateRef });
 
 	// =========================================================================
 	// STATE

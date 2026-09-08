@@ -4,6 +4,51 @@ This document details the breaking changes of `ng-hub-ui-calendar` and how to mi
 
 The major version tracks the Angular major the library targets, so it cannot also signal a break: a breaking change ships in a **minor** release and is announced here. This file — not the version number — is the warning.
 
+## [22.8.0] - 2026-09-08
+
+### The template directives are renamed `HubCalendarDayCellTemplateDirective` and `HubCalendarEventTemplateDirective`
+
+- **Change**: `DayCellTemplateDirective` is now `HubCalendarDayCellTemplateDirective`, and
+  `EventTemplateDirective` is now `HubCalendarEventTemplateDirective`. Only the exported names move:
+  the classes are the same objects, and the selectors — `[dayCellTpt]` and `[eventTpt]` — are
+  untouched.
+
+- **Why**: an export without a prefix sits in the application's namespace, not the library's.
+  `EventTemplateDirective` is a name any codebase might give a directive of its own, and the day it
+  does, the file that imports both has two bindings competing for one identifier and has to alias its
+  way out of a collision it did not create. The rest of this package already carried the prefix —
+  `HubCalendarComponent`, `HubCalendarConfig` — so these two were the exception rather than the rule.
+  The library's name goes in the middle for the same reason it is in the component's: `Hub` alone
+  only says the symbol came from this family, and an event template is precisely the kind of thing
+  more than one package in it will offer, so `HubEventTemplateDirective` would leave the reader of an
+  import list unable to say which one this is.
+
+- **What happens if you do nothing**: today, nothing at all. Both old names are still exported, as
+  `@deprecated` aliases pointing at the very same classes, so imports keep resolving, `imports: [...]`
+  arrays keep matching and templates keep rendering exactly as before. They are removed in **23.0.0**,
+  the release that moves this family to Angular 23, and that is the version where the import stops
+  compiling.
+
+- **Migration**: rename the import and the entries in `imports`. The markup does not change.
+
+    ```ts
+    // Before
+    import { HubCalendarComponent, EventTemplateDirective, DayCellTemplateDirective } from 'ng-hub-ui-calendar';
+
+    // After
+    import {
+    	HubCalendarComponent,
+    	HubCalendarEventTemplateDirective,
+    	HubCalendarDayCellTemplateDirective
+    } from 'ng-hub-ui-calendar';
+    ```
+
+    ```html
+    <!-- unchanged, in both versions -->
+    <ng-template eventTpt let-event="event">…</ng-template>
+    <ng-template dayCellTpt let-day="day">…</ng-template>
+    ```
+
 ## [22.7.0] - 2026-09-07
 
 ### Removed: three `CalendarConfig` options that never did anything
