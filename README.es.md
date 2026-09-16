@@ -3,7 +3,7 @@
 **Español** | [English](./README.md)
 
 [![npm version](https://img.shields.io/npm/v/ng-hub-ui-calendar.svg)](https://www.npmjs.com/package/ng-hub-ui-calendar)
-[![license](https://img.shields.io/npm/l/ng-hub-ui-calendar.svg)](https://github.com/carlos-morcillo/ng-hub-ui-calendar/blob/main/LICENSE)
+[![license](https://img.shields.io/npm/l/ng-hub-ui-calendar.svg)](https://github.com/hub-env/ng-hub-ui-calendar/blob/main/LICENSE)
 
 > **⚠️ CRÍTICO (RELEASE MAYOR):** La versión 21.0.0 introduce cambios arquitectónicos en la definición de variables SCSS, refactorizándolas a la convención estándar (`--hub-calendar-*`). Por favor, lea [BREAKING_CHANGES.md](./BREAKING_CHANGES.md) antes de actualizar.
 
@@ -16,6 +16,7 @@ Este paquete forma parte de [Hub UI](https://hubui.dev/en/), una colección de b
 - Documentación: https://hubui.dev/en/calendar/overview/
 - Ejemplos en vivo: https://hubui.dev/en/calendar/examples/
 - Hub UI: https://hubui.dev/en/
+- Hub UI en GitHub (incidencias, roadmap y cómo contribuir): https://github.com/hub-env/hub-ui
 
 ## 🧩 Familia de librerías `ng-hub-ui`
 
@@ -619,7 +620,7 @@ hub-calendar {
 
 ## 📞 Soporte y Licencia
 
-- **Issues**: [GitHub Issues](https://github.com/carlos-morcillo/ng-hub-ui-calendar/issues)
+- **Issues**: [GitHub Issues](https://github.com/hub-env/hub-ui/issues)
 - **Autor**: [Carlos Morcillo](https://www.carlosmorcillo.com)
 - **Licencia**: MIT
 

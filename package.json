@@ -20,7 +20,10 @@
 	"author": "Carlos Morcillo <carlos.morcillo@me.com> (https://www.carlosmorcillo.com)",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/carlos-morcillo/ng-hub-ui-calendar.git"
+		"url": "git+https://github.com/hub-env/ng-hub-ui-calendar.git"
+	},
+	"bugs": {
+		"url": "https://github.com/hub-env/hub-ui/issues"
 	},
 	"keywords": [
 		"angular",
