@@ -32,7 +32,22 @@
 		"events",
 		"scheduler",
 		"ng-hub-ui",
-		"drag-drop"
+		"drag-drop",
+		"event-calendar",
+		"scheduling",
+		"month-view",
+		"week-view",
+		"day-view",
+		"year-view",
+		"all-day-events",
+		"drag-and-drop",
+		"i18n",
+		"accessibility",
+		"keyboard-navigation",
+		"ui-component",
+		"angular-library",
+		"standalone",
+		"typescript"
 	],
 	"homepage": "https://hubui.dev/en/calendar/overview/"
 }
