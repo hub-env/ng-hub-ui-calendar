@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [22.8.2] - 2026-09-20
+
+### Fixed
+
+- **The header buttons follow the dark theme.** Every surface in the calendar reads a
+  `--hub-sys-*` token except one: the nav, today and view buttons fell back to
+  `--hub-ref-color-white`, a reference token no theme redefines. On a dark theme they came
+  out white with the theme's light text on top — the month grid looked right and its own
+  controls were unreadable. They fall back to `--hub-sys-surface-page` now, which is
+  `#ffffff` in the light theme, so nothing moves there.
+
 ## [22.8.1] - 2026-09-16
 
 ### Changed
