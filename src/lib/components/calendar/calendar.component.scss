@@ -49,7 +49,7 @@ $header-padding-y: var(--hub-calendar-header-padding-y, var(--hub-ref-space-3, 1
 $header-gap: var(--hub-calendar-header-gap, var(--hub-ref-space-3, 1rem));
 
 // Buttons (nav / today / view switcher)
-$btn-bg: var(--hub-calendar-btn-bg, var(--hub-ref-color-white, #ffffff));
+$btn-bg: var(--hub-calendar-btn-bg, var(--hub-sys-surface-page, #ffffff));
 $btn-color: var(--hub-calendar-btn-color, inherit);
 $btn-border-color: var(--hub-calendar-btn-border-color, var(--hub-sys-border-color-default, #dee2e6));
 $btn-border-radius: var(--hub-calendar-btn-border-radius, var(--hub-ref-radius-sm, 0.25rem));
