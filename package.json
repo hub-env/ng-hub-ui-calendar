@@ -1,10 +1,10 @@
 {
 	"name": "ng-hub-ui-calendar",
-	"version": "22.8.2",
+	"version": "22.8.3",
 	"description": "Calendar component for Angular applications with multiple views, native drag-and-drop, and event management",
 	"peerDependencies": {
-		"@angular/common": ">=19.0.0",
-		"@angular/core": ">=19.0.0",
+		"@angular/common": ">=17.2.0",
+		"@angular/core": ">=17.2.0",
 		"ng-hub-ui-ds": ">=22.0.0",
 		"ng-hub-ui-utils": ">=22.13.0"
 	},
@@ -17,7 +17,7 @@
 		"tslib": "^2.3.0"
 	},
 	"license": "MIT",
-	"author": "Carlos Morcillo Fernández <carlos.morcillo@me.com> (https://www.carlosmorcillo.com)",
+	"author": "Carlos Morcillo Fern\u00e1ndez <carlos.morcillo@me.com> (https://www.carlosmorcillo.com)",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/hub-env/ng-hub-ui-calendar.git"
