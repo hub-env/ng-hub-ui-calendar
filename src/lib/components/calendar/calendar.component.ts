@@ -8,6 +8,7 @@ import { DatePipe, formatDate, NgTemplateOutlet } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
 	afterNextRender,
+	booleanAttribute,
 	ChangeDetectionStrategy,
 	Component,
 	computed,
@@ -87,6 +88,7 @@ const CALENDAR_BUILT_IN_VARIANTS = new Set<string>([
 	styleUrl: './calendar.component.scss',
 	host: {
 		class: 'hub-calendar',
+		'[class.hub-calendar--compact]': 'compact()',
 		'[attr.data-variant]': 'variant() ?? null',
 		'[style.--hub-calendar-accent]': 'customAccent()',
 		'[style.--hub-calendar-height]': 'resolvedHeight()'
@@ -287,6 +289,52 @@ export class HubCalendarComponent<T = any> {
 		return /^-?\d+(\.\d+)?$/.test(trimmed) ? `${trimmed}px` : trimmed;
 	});
 
+	/**
+	 * Draws the calendar as a mini-month: the dense, chrome-less shape a dashboard card wants.
+	 *
+	 * It is a **variant**, not a replacement — an unset `compact` leaves every pixel of the
+	 * calendar exactly where it was. Switched on, three things change together, because a
+	 * mini-month is all three or none of them:
+	 *
+	 * - the toolbar goes. The "today" shortcut, the previous/next arrows and the view switcher
+	 *   were spending half the height of a 260px card on controls a caption-sized month has no
+	 *   room for. The title stays: the one thing a month grid cannot be read without is which
+	 *   month it is. Navigation is still available to the consumer — `previous()`, `next()` and
+	 *   `goToToday()` are public, so `<hub-calendar #cal compact>` reaches them from its own
+	 *   chrome, and `[(selectedDate)]` drives them from the outside;
+	 * - the grid loses its floors. A day cell demands 80px and a week row 100px in the full
+	 *   calendar, which is six hundred-odd pixels before anything is drawn — that is why a
+	 *   260px calendar showed one week and scrolled the rest. Compact drops both to a row
+	 *   height that puts the whole month, headers included, in about 250px;
+	 * - the cells stop drawing chips and mark instead. There is no room for a title at this
+	 *   size, so a day that holds events carries a dot and says how many in its accessible
+	 *   name.
+	 *
+	 * The weekday headers narrow to the locale's own single letters unless `weekdayFormat` says
+	 * otherwise — see `_weekdayFormat`.
+	 *
+	 * @default false
+	 */
+	readonly compact = input(false, { transform: booleanAttribute });
+
+	/**
+	 * Whether the header draws its two button clusters.
+	 *
+	 * Compact is the only thing that takes them away, and it takes both: leaving the arrows
+	 * behind a hidden switcher would keep the row of buttons this mode exists to remove.
+	 */
+	protected readonly showToolbar = computed(() => !this.compact());
+
+	/**
+	 * Whether the view switcher is drawn at all.
+	 *
+	 * A switcher offering one choice is not a switcher. With `availableViews` narrowed to a
+	 * single view the button could never do anything but repaint its own pressed state, and it
+	 * was still taking a button's worth of the header — which is the height a short calendar
+	 * has least of. Two views or more and it comes back untouched.
+	 */
+	protected readonly showViewSwitcher = computed(() => this.showToolbar() && this.mergedConfig().availableViews.length > 1);
+
 	// =========================================================================
 	// OUTPUTS
 	// =========================================================================
@@ -378,7 +426,15 @@ export class HubCalendarComponent<T = any> {
 	protected readonly _eventTimeFormat = computed(() => this.eventTimeFormat() ?? this.globalConfig.formats.eventTimeFormat);
 	protected readonly _slotLabelFormat = computed(() => this.slotLabelFormat() ?? this.globalConfig.formats.slotLabelFormat);
 	protected readonly _hourFormat = computed(() => this.hourFormat() ?? this.globalConfig.formats.hourFormat);
-	protected readonly _weekdayFormat = computed(() => this.weekdayFormat() ?? this.globalConfig.formats.weekdayFormat);
+	/**
+	 * Compact moves the default to `narrow` rather than the usual `short`: a column two
+	 * characters wide is the whole width a mini-month cell has, and `Mié` in it is clipped
+	 * type where `X` is a heading. An explicit `weekdayFormat` still wins, in compact as
+	 * everywhere else — the narrowing is a default, not an override.
+	 */
+	protected readonly _weekdayFormat = computed<'short' | 'narrow' | 'long'>(
+		() => this.weekdayFormat() ?? (this.compact() ? 'narrow' : this.globalConfig.formats.weekdayFormat)
+	);
 	protected readonly _monthFormat = computed(() => this.monthFormat() ?? this.globalConfig.formats.monthFormat);
 
 	/** Whether every clock this calendar prints is a 12-hour one. */
@@ -628,11 +684,32 @@ export class HubCalendarComponent<T = any> {
 	readonly currentDay = computed<CalendarDay<T>>(() => this.generateDayView());
 
 	/**
-	 * Heading of the day view. Built from the calendar dictionary rather than `DatePipe`,
-	 * so it follows the `locale` input like every other label instead of the application's
-	 * `LOCALE_ID` — the two diverge as soon as a consumer localizes one calendar on its own.
+	 * Writes a whole date the way the reader's language writes one.
+	 *
+	 * It follows the `locale` input rather than the application `LOCALE_ID`, like every other
+	 * label here, and an unusable language tag falls back to the runtime default instead of
+	 * throwing mid-render.
 	 */
-	readonly currentDayLabel = computed(() => this.getDayAriaLabel(this.currentDay()));
+	private readonly fullDateFormatter = computed(() => {
+		const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+		try {
+			return new Intl.DateTimeFormat(this.locale(), options);
+		} catch {
+			return new Intl.DateTimeFormat(undefined, options);
+		}
+	});
+
+	/**
+	 * Heading of the day view.
+	 *
+	 * It used to be assembled here — weekday, comma, month, day, comma, year — which is English
+	 * word order and nothing else's: in Spanish it came out as "miércoles, julio 15, 2026", a
+	 * sentence no Spanish calendar has ever printed. Joining the pieces by hand cannot be got
+	 * right, because the order is a property of the language and not of the date, so they are
+	 * not joined here at all: `Intl` knows where every locale puts them. English is unchanged
+	 * down to the comma.
+	 */
+	readonly currentDayLabel = computed(() => this.fullDateFormatter().format(this.currentDay().date));
 
 	/**
 	 * Months array for year view.
@@ -784,6 +861,22 @@ export class HubCalendarComponent<T = any> {
 		const months = this.getTranslation('months') || CALENDAR_I18N['en']['months'];
 		const date = day.date;
 		return `${weekdays[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+	}
+
+	/**
+	 * Accessible name of a month-view day cell.
+	 *
+	 * The full date, and in compact the day's event count after it. A compact cell draws a dot
+	 * where the full one draws chips, and a dot is `aria-hidden` — so the name is the only
+	 * route a screen-reader user has to "this day has something on it". The count is the
+	 * dictionary's existing `eventCount`, the same string the year-view cards announce.
+	 *
+	 * @param day - The day the cell stands for
+	 * @returns Localized full date, with the event count appended in compact
+	 */
+	protected getDayCellLabel(day: CalendarDay<T>): string {
+		const base = this.getDayAriaLabel(day);
+		return this.compact() && day.events.length > 0 ? `${base}, ${this.getEventCountLabel(day.events.length)}` : base;
 	}
 
 	/**

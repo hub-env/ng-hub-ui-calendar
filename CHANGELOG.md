@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [22.10.0] - 2026-09-23
+
+### Added
+
+- **`compact` — the mini-month a dashboard card can hold.** `<hub-calendar compact>` draws the
+  whole month in about 250px: the "today" shortcut, the previous/next arrows and the view switcher
+  go, the weekday headers become the locale's own single letters, the day cells drop the 80px floor
+  that made six rows cost six hundred pixels, and a day that holds events carries a dot instead of
+  chips it has no room to print. The month caption stays — it is the one thing a month grid cannot
+  be read without. Until now a calendar given `[height]="260"` in a narrow card spent half of it on
+  the toolbar and showed one week, which is why consuming products were drawing mini-months of
+  their own.
+- Navigation is still the consumer's in compact: `previous()`, `next()` and `goToToday()` are
+  public, so `<hub-calendar #cal compact>` can drive them from its own chrome, and
+  `[(selectedDate)]` drives them from the outside.
+- Six new tokens dress it — `--hub-calendar-compact-row-min-height`, `--hub-calendar-compact-padding`,
+  `--hub-calendar-compact-title-font-size`, `--hub-calendar-compact-day-font-size`,
+  `--hub-calendar-compact-weekday-font-size` — plus `--hub-calendar-day-marker-size` and
+  `--hub-calendar-day-marker-color` for the dot.
+
+### Fixed
+
+- **A view switcher offering one choice no longer renders.** With `config.availableViews` narrowed
+  to a single view the button was still drawn, where the only thing it could do was repaint its own
+  pressed state — and it was taking a button's worth of the header, which is the height a short
+  calendar has least of. Two views or more and the switcher is exactly as it was.
+- **The day view's heading follows the reader's language, not English word order.** It was assembled
+  here — weekday, comma, month, day, comma, year — so in Spanish it came out as
+  "Miércoles, Julio 15, 2026" instead of "miércoles, 15 de julio de 2026". The pieces are no longer
+  joined by hand: `Intl` knows where each locale puts them. English is unchanged down to the comma.
+  See `BREAKING_CHANGES.md` for what this means for an application dictionary.
+
 ## [22.9.0] - 2026-09-23
 
 ### Changed

@@ -451,7 +451,9 @@ describe('HubCalendarComponent', () => {
 
 				inSpanish();
 
-				expect(textOf('.hub-calendar__day-view-header h3')).toBe('Miércoles, Julio 15, 2026');
+				// The order is the language's, not English's assembled with Spanish words:
+				// see `calendar-compact.spec.ts` for the case that pins it.
+				expect(textOf('.hub-calendar__day-view-header h3')).toBe('miércoles, 15 de julio de 2026');
 			});
 		});
 

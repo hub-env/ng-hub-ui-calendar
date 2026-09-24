@@ -202,6 +202,26 @@ The week and day views are deliberately untouched by that order. An event there 
 against the hour ruler, so its position already states the time and repeating it inside the
 chip would say the same thing twice; those chips are the title alone.
 
+### Compact (mini-month)
+
+Read only while the calendar carries `compact`. The defaults are an arithmetic rather than a
+taste: six week rows at `2rem`, plus a weekday header row and a caption row, put a whole month
+in roughly 250px — the size a dashboard card gives a calendar, and the size at which the
+ordinary grid showed one week and scrolled the other five.
+
+`--hub-calendar-day-marker-*` dress the dot a compact cell draws when its day holds events. The
+dot takes the accent, so a `variant` marks the month in the colour the chips would have been.
+
+| Variable                                   | Default                                 |
+| ------------------------------------------ | --------------------------------------- |
+| `--hub-calendar-compact-row-min-height`    | `2rem`                                  |
+| `--hub-calendar-compact-padding`           | `var(--hub-ref-space-1, 0.25rem)`       |
+| `--hub-calendar-compact-title-font-size`   | `var(--hub-ref-font-size-base, 1rem)`   |
+| `--hub-calendar-compact-day-font-size`     | `var(--hub-ref-font-size-sm, 0.875rem)` |
+| `--hub-calendar-compact-weekday-font-size` | `var(--hub-ref-font-size-xs, 0.75rem)`  |
+| `--hub-calendar-day-marker-size`           | `0.3125rem`                             |
+| `--hub-calendar-day-marker-color`          | `var(--hub-calendar-accent)`            |
+
 ### Week Numbers
 
 Shown only when `config.showWeekNumbers` is on. The cells reuse `--hub-calendar-header-bg`,

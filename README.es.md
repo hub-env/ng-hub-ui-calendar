@@ -64,6 +64,7 @@ Esta librería es parte del ecosistema **Hub UI**:
 ## ✨ Características
 
 - **Múltiples Tipos de Vista**: Vistas de Mes, Semana, Día y Año
+- **Mini-mes compacto**: `compact` dibuja un mes entero en unos 250px — sin barra de herramientas, con las iniciales de los días según el idioma y un punto en cada día con eventos
 - **Números de Semana**: columna opcional al inicio de la vista de mes (`config.showWeekNumbers`), numerada desde el primer día de semana configurado
 - **Eventos de Todo el Día**: los eventos con `allDay` tienen una franja propia y rotulada encima de la rejilla de horas en las vistas de semana y día; en la vista de mes el contraste se invierte — los eventos con hora la muestran detrás de un punto de color y los de todo el día conservan la barra rellena
 - **Eventos con Hora sobre la Rejilla**: en las vistas de semana y día un evento con hora ocupa la banda que le marca su propio reloj — el borde superior sigue a `start` y la altura a la duración — y los que se solapan se reparten el ancho de la columna en bandas iguales una al lado de otra
@@ -348,6 +349,7 @@ export class EventHandlingComponent {
 | `locale`            | `string`                                                           | `'en'`                                   | Código de idioma para traducciones                                                                                                                           |
 | `variant`           | `string`                                                           | `'primary'`                              | Acento semántico: `primary` / `secondary` / `success` / `danger` / `warning` / `info` / `neutral` / `light` / `dark`, o cualquier nombre `--hub-sys-color-*` |
 | `height`            | `number \| string`                                                 | -                                        | Alto del calendario: un número en píxeles, cualquier longitud CSS o `auto` para crecer en lugar de desplazarse. Sin valor, ocupa su contenedor               |
+| `compact`           | `boolean`                                                          | `false`                                  | Mini-mes: sin barra de herramientas, iniciales del idioma como cabeceras, un punto en vez de chips, el mes entero en unos 250px                              |
 | `displayFormat`     | `Intl.DateTimeFormatOptions \| string \| ((date: Date) => string)` | -                                        | Cómo escribe el título de la cabecera el mes y el año. La vista de año conserva su año                                                                       |
 | `timeDisplayFormat` | `Intl.DateTimeFormatOptions`                                       | `{ hour: 'numeric', minute: '2-digit' }` | Reloj de los tooltips del chip y del día, compuesto con `hourFormat`                                                                                         |
 | `eventTimeFormat`   | `Intl.DateTimeFormatOptions \| string \| ((date: Date) => string)` | -                                        | Hora que imprime un chip de mes; sin valor conserva la abreviatura (`9 AM`)                                                                                  |
@@ -379,6 +381,44 @@ su contenedor igual que antes.
 
 Para dimensionar de una vez todos los calendarios de una aplicación, declara `--hub-calendar-height`
 en `:root`; un `[height]` en una instancia concreta sigue prevaleciendo.
+
+### El mini-mes compacto
+
+Fijar el alto no basta para que un calendario quepa. Una celda de día pide 80px y una fila de semana
+100px se le diga lo que se le diga, así que seis filas cuestan seiscientos píxeles antes de dibujar
+una sola fecha — por eso un calendario al que se le daban 260px en una tarjeta de panel mostraba la
+primera semana y desplazaba el resto, con la barra de herramientas gastándose la mitad de lo que
+quedaba.
+
+`compact` es la variante que cabe. Quita la barra, elimina los dos mínimos, reduce las cabeceras a las
+iniciales del propio idioma y cambia los chips por un punto, porque en una celda de ese tamaño no cabe
+más que un número. El rótulo del mes se queda: es lo único sin lo que una rejilla de mes no se puede
+leer.
+
+```html
+<hub-calendar compact [events]="deadlines()" [height]="250" />
+```
+
+La rejilla son seis filas en todos los meses, como siempre, así que no da saltos al pasar de mes. La
+navegación sigue siendo tuya — las flechas desaparecen, pero `previous()`, `next()` y `goToToday()`
+son métodos públicos y tu propio interfaz puede llamarlos:
+
+```html
+<button type="button" (click)="cal.previous()">‹</button>
+<hub-calendar #cal compact [events]="deadlines()" [(selectedDate)]="month" />
+<button type="button" (click)="cal.next()">›</button>
+```
+
+Las iniciales salen de `Intl`, no de recortar un nombre traducido: en español ese recorte da **M**
+tanto para martes como para miércoles, y la respuesta del idioma es **M** y **X**. Un `weekdayFormat`
+explícito sigue mandando — el estrechamiento es un valor por defecto, no una imposición.
+
+Un día con eventos lleva un punto, leído del mismo input `events` que leen los chips, así que cambiar
+la lista vuelve a marcar el mes. El punto queda oculto para los lectores de pantalla; en su lugar, el
+recuento se añade al nombre accesible de la celda, donde puede leerse con palabras.
+
+`compact` es una variante, no un reemplazo: déjalo sin poner y cada píxel del calendario sigue donde
+ha estado siempre.
 
 ### Un calendario estrecho apila su cabecera
 
@@ -543,6 +583,7 @@ interface CalendarConfig {
 ## ♿ Accesibilidad
 
 - **Cuadrícula de mes ARIA**: la vista de mes es un `role="grid"` etiquetado (nombre accesible = el mes/año visible, localizado) con semántica `role="row"` / `role="columnheader"` / `role="gridcell"`, `aria-selected` en el día seleccionado, `aria-current="date"` en el día de hoy y un `aria-label` de fecha completa localizado por celda.
+- **Las celdas compactas dicen lo que muestra el punto**: el marcador de eventos es `aria-hidden`, así que un día compacto añade su recuento de eventos localizado al nombre accesible de la celda — la única vía que sobrevive a la linealización.
 - **Tabindex itinerante — la selección sigue al foco**: el día seleccionado es la única celda tabulable, de modo que mover el foco con el teclado también mueve la selección, en línea con el modelo de navegación anterior/siguiente de la cabecera.
 - **Navegación por teclado**: las flechas mueven por día/semana, `Home`/`End` saltan al inicio/fin de la semana, `PageUp`/`PageDown` van al mismo día del mes anterior/siguiente (ajustado al mes destino, emitiendo `dateChange`) y `Enter`/`Space` activan el día exactamente como un clic (`dayClick`).
 - **Controles reales**: los chips de evento (vistas de mes/semana/día) y las tarjetas de mes de la vista de año son botones activables por teclado (`role="button"`, `tabindex="0"`, `Enter`/`Space`); los botones anterior/siguiente de la cabecera, que solo muestran un icono, llevan `aria-label`s localizados y el conmutador de vistas expone `aria-pressed`.

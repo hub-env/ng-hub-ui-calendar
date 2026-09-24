@@ -14,6 +14,7 @@ The library ships one component, `hub-calendar`, plus the two structural directi
 |                | Year overview of month cards (`view="year"`)       |       ✅        |
 |                | Two-way `[(view)]` / `viewChange`                  |       ✅        |
 |                | Switcher narrowed by `config.availableViews`       |       ❌        |
+|                | A single available view renders no switcher at all |       ❌        |
 | **Navigation** | Previous / next period buttons                     |       ✅        |
 |                | `Today` shortcut                                   |       ✅        |
 |                | Two-way `[(selectedDate)]` / `selectedDateChange`  |       ✅        |
@@ -23,26 +24,39 @@ The library ships one component, `hub-calendar`, plus the two structural directi
 
 ## Size and layout
 
-| Category   | Functionality                                                           | Example Covered |
-| :--------- | :---------------------------------------------------------------------- | :-------------: |
-| **Height** | `height` input in pixels (`[height]="600"`, `height="600"`)             |       ✅        |
-|            | Any CSS length (`'32rem'`, `'60vh'`) and `'auto'` for grow-don't-scroll |       ❌        |
-|            | Unset: the calendar fills its container, as it always has               |       ✅        |
-|            | `--hub-calendar-height` for sizing every calendar from `:root`          |       ❌        |
-| **Scroll** | Week and day: the hour grid scrolls, headers and all-day strip stay put |       ✅        |
-|            | Month: the grid scrolls under a weekday row pinned to the top of it     |       ✅        |
-| **Header** | Title centred on the calendar, not on the gap its neighbours leave      |       ✅        |
-|            | Header stacks into rows below 48rem of calendar width, title on its own |       ❌        |
-|            | Breakpoint keyed to the calendar's own width, not the viewport's        |       ❌        |
-|            | The month is never clipped and never split; the row breaks instead      |       ❌        |
-|            | View switcher never leaves the calendar: it wraps, then shortens labels |       ❌        |
-|            | Navigation and view switcher drawn as joined button groups              |       ✅        |
-|            | Group corners rounded logically, so right-to-left flips on its own      |       ❌        |
+| Category    | Functionality                                                           | Example Covered |
+| :---------- | :---------------------------------------------------------------------- | :-------------: |
+| **Height**  | `height` input in pixels (`[height]="600"`, `height="600"`)             |       ✅        |
+|             | Any CSS length (`'32rem'`, `'60vh'`) and `'auto'` for grow-don't-scroll |       ❌        |
+|             | Unset: the calendar fills its container, as it always has               |       ✅        |
+|             | `--hub-calendar-height` for sizing every calendar from `:root`          |       ❌        |
+| **Scroll**  | Week and day: the hour grid scrolls, headers and all-day strip stay put |       ✅        |
+|             | Month: the grid scrolls under a weekday row pinned to the top of it     |       ✅        |
+| **Compact** | `compact` mini-month: whole month in about 250px of height              |       ❌        |
+|             | Toolbar gone — no today, no arrows, no switcher; the caption stays      |       ❌        |
+|             | Six fixed rows, so the grid never jumps as the month is paged           |       ❌        |
+|             | Weekday headers as the locale's own initials, derived with `Intl`       |       ❌        |
+|             | A day holding events carries a dot, and says the count in its name      |       ❌        |
+| **Header**  | Title centred on the calendar, not on the gap its neighbours leave      |       ✅        |
+|             | Header stacks into rows below 48rem of calendar width, title on its own |       ❌        |
+|             | Breakpoint keyed to the calendar's own width, not the viewport's        |       ❌        |
+|             | The month is never clipped and never split; the row breaks instead      |       ❌        |
+|             | View switcher never leaves the calendar: it wraps, then shortens labels |       ❌        |
+|             | Navigation and view switcher drawn as joined button groups              |       ✅        |
+|             | Group corners rounded logically, so right-to-left flips on its own      |       ❌        |
 
 Sizing the calendar from a consumer stylesheet is possible and is a trap worth naming: a scoped
 `hub-calendar { … }` selector outranks the component's own `:host`, so a `display` written beside the
 height unstacks the flex column the scrolling is built on and the hour grid grows to its full day
 instead of scrolling. `[height]` is the route that cannot be got wrong that way.
+
+`compact` is the other half of the same problem: a height alone does not make a calendar fit, because
+a day cell asks for 80px and a week row for 100px whatever the calendar is told, so a 260px card got
+one week and a scrollbar. Compact lifts both floors, takes the toolbar away and swaps the event chips
+for a dot, which is the only thing a cell that size has room to say. It is a **variant**: an unset
+`compact` leaves every pixel where it was. Navigation stays the consumer's — `previous()`, `next()`
+and `goToToday()` are public methods, so `<hub-calendar #cal compact>` reaches them from its own
+chrome.
 
 ## Events
 
@@ -106,6 +120,7 @@ through one another. `getTimedEventPlacements(day)` exposes the resulting geomet
 | **Time grid**    | `config.dayStartHour` / `config.dayEndHour`                   |       ✅        |
 |                  | Events outside the bounded ruler are left undrawn             |       ❌        |
 | **Views**        | `config.availableViews`                                       |       ❌        |
+|                  | One available view: the switcher is not rendered              |       ❌        |
 | **Drag & drop**  | `config.dragAndDropEnabled`                                   |       ❌        |
 
 ## Formats
@@ -139,15 +154,16 @@ way of saving room on screen and a name read aloud has none to save.
 
 ## Internationalization
 
-| Category        | Functionality                                             | Example Covered |
-| :-------------- | :-------------------------------------------------------- | :-------------: |
-| **Bundled**     | `locale` with the bundled `en` and `es` dictionaries      |       ✅        |
-|                 | Fallback to English for a locale that is not bundled      |       ✅        |
-|                 | `weekAbbr` / `weekNumberLabel` for the week-number column |       ❌        |
-|                 | `monthsShort` behind `CalendarMonth.shortName`            |       ❌        |
-| **Application** | `HUBUI.CALENDAR.*` through `HubTranslationService`        |       ❌        |
-|                 | Legacy top-level `calendar.*` branch as the fallback      |       ❌        |
-|                 | Labels re-render when the dictionary source emits         |       ❌        |
+| Category        | Functionality                                              | Example Covered |
+| :-------------- | :--------------------------------------------------------- | :-------------: |
+| **Bundled**     | `locale` with the bundled `en` and `es` dictionaries       |       ✅        |
+|                 | Fallback to English for a locale that is not bundled       |       ✅        |
+|                 | Day-view heading written by `Intl` in the language's order |       ❌        |
+|                 | `weekAbbr` / `weekNumberLabel` for the week-number column  |       ❌        |
+|                 | `monthsShort` behind `CalendarMonth.shortName`             |       ❌        |
+| **Application** | `HUBUI.CALENDAR.*` through `HubTranslationService`         |       ❌        |
+|                 | Legacy top-level `calendar.*` branch as the fallback       |       ❌        |
+|                 | Labels re-render when the dictionary source emits          |       ❌        |
 
 ## Accessibility
 

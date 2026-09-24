@@ -61,6 +61,7 @@ This library is part of the **Hub UI** ecosystem:
         - [Event Handling](#event-handling)
     - [📖 API Reference](#-api-reference)
         - [Inputs](#inputs)
+        - [The compact mini-month](#the-compact-mini-month)
         - [Outputs](#outputs)
         - [Interfaces](#interfaces)
     - [♿ Accessibility](#-accessibility)
@@ -70,6 +71,7 @@ This library is part of the **Hub UI** ecosystem:
 ## ✨ Features
 
 - **Multiple View Types**: Month, Week, Day, and Year views
+- **Compact mini-month**: `compact` draws a whole month in about 250px — no toolbar, locale-derived day initials, and a dot on every day that holds events
 - **Week Numbers**: optional leading column in month view (`config.showWeekNumbers`), numbered from the configured first day of the week
 - **All-Day Events**: `allDay` events get a labelled strip of their own above the week and day hour grids; in month view the contrast is inverted instead — timed events show their start time behind a coloured dot, all-day ones keep the filled bar
 - **Timed Events on the Hour Grid**: in week and day views a timed event occupies the band its own clock gives it — the top follows `start`, the height follows the duration — and events that overlap share the column in equal side-by-side bands
@@ -355,6 +357,7 @@ export class EventHandlingComponent {
 | `locale`            | `string`                                                           | `'en'`                                   | Language code for translations                                                                                                                       |
 | `variant`           | `string`                                                           | `'primary'`                              | Semantic accent: `primary` / `secondary` / `success` / `danger` / `warning` / `info` / `neutral` / `light` / `dark`, or any `--hub-sys-color-*` name |
 | `height`            | `number \| string`                                                 | -                                        | Height of the calendar: a number in pixels, any CSS length, or `auto` to grow instead of scrolling. Unset, it fills its container                    |
+| `compact`           | `boolean`                                                          | `false`                                  | Mini-month: no toolbar, locale initials as weekday headers, a dot instead of chips, the whole month in about 250px                                   |
 | `displayFormat`     | `Intl.DateTimeFormatOptions \| string \| ((date: Date) => string)` | -                                        | How the header title writes the month and year. The year view keeps its year                                                                         |
 | `timeDisplayFormat` | `Intl.DateTimeFormatOptions`                                       | `{ hour: 'numeric', minute: '2-digit' }` | Clock used in the chip and day tooltips, composed with `hourFormat`                                                                                  |
 | `eventTimeFormat`   | `Intl.DateTimeFormatOptions \| string \| ((date: Date) => string)` | -                                        | Hour a month chip prints; unset it keeps the abbreviation (`9 AM`)                                                                                   |
@@ -384,6 +387,43 @@ weekday row pinned to the top of it. Left unset, the calendar fills its containe
 
 To size every calendar in an application at once, set `--hub-calendar-height` on `:root`; a `[height]`
 on one instance still wins.
+
+### The compact mini-month
+
+A height alone does not make a calendar fit. A day cell asks for 80px and a week row for 100px
+whatever the calendar is told, so six rows cost six hundred pixels before a single date is drawn —
+which is why a calendar given 260px in a dashboard card showed the first week and scrolled the rest,
+with the toolbar spending half of what was left.
+
+`compact` is the variant that fits. It takes the toolbar away, drops both floors, narrows the weekday
+headers to the locale's own initials and swaps the event chips for a dot, because a cell that size has
+room for a number and nothing else. The month caption stays: it is the one thing a month grid cannot
+be read without.
+
+```html
+<hub-calendar compact [events]="deadlines()" [height]="250" />
+```
+
+The grid is six rows in every month, as it always was, so it never jumps by a row as the month is
+paged. Navigation stays yours — the arrows are gone, but `previous()`, `next()` and `goToToday()` are
+public methods, so your own chrome can drive them:
+
+```html
+<button type="button" (click)="cal.previous()">‹</button>
+<hub-calendar #cal compact [events]="deadlines()" [(selectedDate)]="month" />
+<button type="button" (click)="cal.next()">›</button>
+```
+
+The day initials come from `Intl`, not from slicing a translated name: Spanish gives **M** for both
+Martes and Miércoles that way, and the language's own answer is **M** and **X**. An explicit
+`weekdayFormat` still wins — the narrowing is a default, not an override.
+
+A day that holds events carries a dot, read off the same `events` input the chips read, so changing
+the list re-marks the month. The dot is hidden from assistive technology; the count is appended to the
+cell's own accessible name instead, where it can be read as words.
+
+`compact` is a variant, not a replacement: leave it unset and every pixel of the calendar is where it
+has always been.
 
 ### A narrow calendar stacks its header
 
@@ -545,6 +585,7 @@ interface CalendarConfig {
 ## ♿ Accessibility
 
 - **ARIA month grid**: the month view is a labelled `role="grid"` (accessible name = the visible month/year, localized) with `role="row"` / `role="columnheader"` / `role="gridcell"` semantics, `aria-selected` on the selected day, `aria-current="date"` on today and a localized full-date `aria-label` per cell.
+- **Compact cells say what the dot shows**: the event marker is `aria-hidden`, so a compact day appends its localized event count to the cell's own accessible name — the only route that survives linearization.
 - **Roving tabindex — selection follows focus**: the selected day is the single tabbable cell, so moving focus with the keyboard also moves the selection, matching the header prev/next navigation model.
 - **Keyboard navigation**: Arrow keys move by day/week, `Home`/`End` jump to the start/end of the week, `PageUp`/`PageDown` move to the same day in the previous/next month (clamped to the target month, emitting `dateChange`), and `Enter`/`Space` activate the day exactly like a click (`dayClick`).
 - **Real controls**: event chips (month/week/day views) and year-view month cards are keyboard-activatable buttons (`role="button"`, `tabindex="0"`, `Enter`/`Space`); the icon-only prev/next header buttons carry localized `aria-label`s and the view switcher exposes `aria-pressed`.

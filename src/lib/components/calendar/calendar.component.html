@@ -1,42 +1,46 @@
 <!-- Header -->
 <div class="hub-calendar__header">
-	<div class="hub-calendar__nav hub-calendar__btn-group">
-		<button
-			type="button"
-			class="hub-calendar__btn hub-calendar__btn--nav"
-			[attr.aria-label]="navLabels().previous"
-			(click)="previous()"
-		>
-			<span class="hub-calendar__icon" aria-hidden="true">◀</span>
-		</button>
-		<button type="button" class="hub-calendar__btn hub-calendar__btn--today" (click)="goToToday()">
-			{{ todayLabel() }}
-		</button>
-		<button
-			type="button"
-			class="hub-calendar__btn hub-calendar__btn--nav"
-			[attr.aria-label]="navLabels().next"
-			(click)="next()"
-		>
-			<span class="hub-calendar__icon" aria-hidden="true">▶</span>
-		</button>
-	</div>
+	@if (showToolbar()) {
+		<div class="hub-calendar__nav hub-calendar__btn-group">
+			<button
+				type="button"
+				class="hub-calendar__btn hub-calendar__btn--nav"
+				[attr.aria-label]="navLabels().previous"
+				(click)="previous()"
+			>
+				<span class="hub-calendar__icon" aria-hidden="true">◀</span>
+			</button>
+			<button type="button" class="hub-calendar__btn hub-calendar__btn--today" (click)="goToToday()">
+				{{ todayLabel() }}
+			</button>
+			<button
+				type="button"
+				class="hub-calendar__btn hub-calendar__btn--nav"
+				[attr.aria-label]="navLabels().next"
+				(click)="next()"
+			>
+				<span class="hub-calendar__icon" aria-hidden="true">▶</span>
+			</button>
+		</div>
+	}
 
 	<h2 class="hub-calendar__title" aria-live="polite">{{ headerTitle() }}</h2>
 
-	<div class="hub-calendar__views hub-calendar__btn-group">
-		@for (v of mergedConfig().availableViews; track v) {
-			<button
-				type="button"
-				class="hub-calendar__btn"
-				[class.hub-calendar__btn--active]="view() === v"
-				[attr.aria-pressed]="view() === v"
-				(click)="setView(v)"
-			>
-				{{ viewLabels()[v] }}
-			</button>
-		}
-	</div>
+	@if (showViewSwitcher()) {
+		<div class="hub-calendar__views hub-calendar__btn-group">
+			@for (v of mergedConfig().availableViews; track v) {
+				<button
+					type="button"
+					class="hub-calendar__btn"
+					[class.hub-calendar__btn--active]="view() === v"
+					[attr.aria-pressed]="view() === v"
+					(click)="setView(v)"
+				>
+					{{ viewLabels()[v] }}
+				</button>
+			}
+		</div>
+	}
 </div>
 
 <!-- Month View -->
@@ -77,7 +81,8 @@
 							[attr.tabindex]="day.isSelected ? 0 : -1"
 							[attr.aria-selected]="day.isSelected"
 							[attr.aria-current]="day.isToday ? 'date' : null"
-							[attr.aria-label]="getDayAriaLabel(day)"
+							[attr.aria-label]="getDayCellLabel(day)"
+							[hubTooltip]="compact() && day.events.length > 0 ? getDayEventsTooltip(day) : ''"
 							(click)="onDayClick(day)"
 							(keydown)="onGridKeydown($event, day)"
 							(dragover)="onDragOver($event)"
@@ -87,6 +92,18 @@
 						>
 							@if (dayCellTemplate()) {
 								<ng-container *ngTemplateOutlet="dayCellTemplate(); context: { day: day }"></ng-container>
+							} @else if (compact()) {
+								<!--
+									A compact cell is a number and, when the day holds something, a dot under it.
+									The dot reads `day.events`, which `weeks()` recomputes from the `events` input,
+									so a list that changes re-marks the month with no further wiring. It is
+									`aria-hidden`: the count reaches assistive technology through the cell's own
+									accessible name instead, where it can be read as words.
+								-->
+								<span class="hub-calendar__day-number">{{ day.date | date: 'd' }}</span>
+								@if (day.events.length > 0) {
+									<span class="hub-calendar__day-marker" aria-hidden="true"></span>
+								}
 							} @else {
 								<span class="hub-calendar__day-number">{{ day.date | date: 'd' }}</span>
 								<div class="hub-calendar__events">

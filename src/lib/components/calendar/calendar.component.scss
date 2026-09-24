@@ -96,6 +96,24 @@ $hour-height: var(--hub-calendar-hour-height, 60px);
 $event-min-height: var(--hub-calendar-event-min-height, 1.5rem);
 $event-gutter: var(--hub-calendar-event-gutter, 2px);
 
+// Compact (mini-month), read only inside `:host(.hub-calendar--compact)`.
+//
+// The defaults are an arithmetic, not a taste: six week rows at 2rem, a weekday header row
+// and a caption row put a whole month — every month, since the grid is always six rows —
+// in roughly 250px. That is the size a dashboard card gives a calendar, and the size at
+// which the ordinary grid showed one week and scrolled the other five, because a day cell
+// asks for 80px and a week row for 100px before anything is drawn.
+$compact-row-min-height: var(--hub-calendar-compact-row-min-height, 2rem);
+$compact-padding: var(--hub-calendar-compact-padding, var(--hub-ref-space-1, 0.25rem));
+$compact-title-font-size: var(--hub-calendar-compact-title-font-size, var(--hub-ref-font-size-base, 1rem));
+$compact-day-font-size: var(--hub-calendar-compact-day-font-size, var(--hub-ref-font-size-sm, 0.875rem));
+$compact-weekday-font-size: var(--hub-calendar-compact-weekday-font-size, var(--hub-ref-font-size-xs, 0.75rem));
+
+// The dot under a compact day number. It takes the accent by default, so a `variant` marks
+// the month in the same colour the chips would have been.
+$day-marker-size: var(--hub-calendar-day-marker-size, 0.3125rem);
+$day-marker-color: var(--hub-calendar-day-marker-color, #{$accent});
+
 // Height of the whole ruler, and so of every column beside it. `--hub-calendar-grid-hours`
 // is written on the grid by the component from `dayStartHour`/`dayEndHour`; the fallback is
 // the default full day, so the sheet still resolves on its own.
@@ -804,6 +822,63 @@ $height: var(--hub-calendar-height, 100%);
 		margin-top: var(--hub-ref-space-2, 0.5rem);
 		font-size: var(--hub-ref-font-size-sm, 0.875rem);
 		color: #{$muted};
+	}
+}
+
+// ─── Compact (mini-month) ────────────────────────────────────────────────────
+// Matched through `:host()` rather than by class. Under emulated encapsulation a
+// `.hub-calendar--compact .hub-calendar__day` rule is rewritten with the CONTENT
+// attribute on both halves, and the host element carries the host attribute
+// instead — so a rule written that way matches the host of no component at all.
+//
+// Everything here is an override of the ordinary grid, never a second layout: an
+// unset `compact` reaches none of it, which is what keeps this a variant of the
+// calendar rather than a fork of it.
+:host(.hub-calendar--compact) {
+	// One track, because the two button clusters are gone and the title is the header's
+	// only child. Left at three, grid auto-placement would put it in the first of them
+	// and the caption would sit against the left edge.
+	.hub-calendar__header {
+		grid-template-columns: 1fr;
+		padding: #{$compact-padding};
+	}
+
+	.hub-calendar__title {
+		font-size: #{$compact-title-font-size};
+	}
+
+	.hub-calendar__weekday {
+		padding: #{$compact-padding} 0;
+		font-size: #{$compact-weekday-font-size};
+	}
+
+	// The two floors this ticket is about. `min-height: 100px` on a week row is 600px of
+	// month before a single date is drawn, so a 260px calendar could only scroll.
+	.hub-calendar__week {
+		min-height: #{$compact-row-min-height};
+	}
+
+	.hub-calendar__day {
+		min-height: 0;
+		padding: 0;
+		align-items: center;
+		justify-content: center;
+		font-size: #{$compact-day-font-size};
+	}
+
+	.hub-calendar__day-number {
+		font-size: inherit;
+		line-height: 1;
+	}
+
+	// The whole of "this day has something on it" on screen. It is drawn rather than
+	// written because a cell this size fits one number and nothing else; the count is
+	// said in the cell's accessible name, where there is room for words.
+	.hub-calendar__day-marker {
+		width: #{$day-marker-size};
+		height: #{$day-marker-size};
+		border-radius: 50%;
+		background: #{$day-marker-color};
 	}
 }
 

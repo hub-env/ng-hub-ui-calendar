@@ -4,6 +4,32 @@ This document details the breaking changes of `ng-hub-ui-calendar` and how to mi
 
 The major version tracks the Angular major the library targets, so it cannot also signal a break: a breaking change ships in a **minor** release and is announced here. This file — not the version number — is the warning.
 
+## [22.10.0] - 2026-09-23
+
+### The day view's heading is written by `Intl`, not from the calendar dictionary
+
+- **Change**: the heading of the day view — `miércoles, 15 de julio de 2026` — is now produced by
+  `Intl.DateTimeFormat` from the `locale` input. It used to be assembled from the dictionary's
+  `weekdaysFull` and `months` entries in a fixed order.
+
+- **Why**: that order was English's, and a date's word order is a property of the language, not of
+  the date. Feeding Spanish words into an English sentence gave "Miércoles, Julio 15, 2026", which
+  no Spanish calendar has ever printed, and the same applies to every locale that does not put the
+  month before the day. There is no way to fix it while still joining the pieces here.
+
+- **Impact — two things change, and only in this one string.** In English nothing moves: `Intl`
+  writes `Wednesday, July 15, 2026`, comma for comma, exactly what was there before. In every other
+  bundled or application language the heading now reads in that language's own order and follows its
+  own capitalization, so Spanish is lower-case as Spanish is. And an application dictionary supplied
+  through `HUBUI.CALENDAR.weekdaysFull` / `HUBUI.CALENDAR.months` no longer reaches this heading —
+  `Intl` takes the names from the locale. The dictionary still feeds every other label: the header
+  title, the weekday columns, the year cards and the accessible name of each day cell.
+
+- **What happens if you do nothing**: an English calendar is byte-identical. A calendar in another
+  language prints a correct date where it printed a malformed one. If you were relying on a custom
+  dictionary to word this one heading, state it with the `locale` input instead — there is no format
+  input for it.
+
 ## [22.9.0] - 2026-09-23
 
 ### Angular below 17.3.0 is no longer supported
