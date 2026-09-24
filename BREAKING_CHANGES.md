@@ -4,6 +4,46 @@ This document details the breaking changes of `ng-hub-ui-calendar` and how to mi
 
 The major version tracks the Angular major the library targets, so it cannot also signal a break: a breaking change ships in a **minor** release and is announced here. This file — not the version number — is the warning.
 
+## [22.11.0] - 2026-09-24
+
+### `--hub-calendar-muted` no longer aliases the application's muted grey
+
+- **Change**: its default becomes
+  `color-mix(in oklch, var(--hub-calendar-color) 70%, var(--hub-calendar-bg))` instead of
+  `var(--hub-sys-text-muted, #6c757d)`. It is the colour of the weekday header, the week
+  numbers, the hour ruler, the all-day label and the year view's event counts.
+
+- **Why**: the surfaces those labels sit on are the calendar's, and a consumer re-themes a
+  calendar with `--hub-calendar-bg` and `--hub-calendar-color` — which is what the reference
+  tells them to do. A grey they never set stayed behind on a surface that no longer suited it:
+  the documentation's own dark theme printed its weekday names at 3.26:1. Derived from the pair
+  the consumer does set, the quiet labels move with the theme instead of against it.
+
+- **Impact — visible, on the light theme too.** On the ds light theme the labels go from
+  `#6a737b` to a slightly darker neutral mixed from `#212529` and `#ffffff`: 4.68:1 becomes
+  6.14:1, and they are still plainly quieter than the body text at 16:1. An application that
+  re-points `--hub-sys-text-muted` no longer moves the calendar's quiet labels with it.
+
+- **What happens if you do nothing**: quiet labels read on every theme. To restore the old
+  behaviour exactly, set `--hub-calendar-muted: var(--hub-sys-text-muted)`.
+
+### The hour on a filled event chip is the chip's ink, not the muted grey
+
+- **Change**: `.hub-calendar__event-time` inherits the chip's colour. Only the month view's
+  transparent timed chip mutes it, through the new `--hub-calendar-day-muted`.
+
+- **Why**: a filled chip's surface is the accent, and the muted grey was picked against the
+  page. On the default accent that pair was unreadable; it simply had never been measured
+  because the month view is where the hour is usually seen.
+
+- **Impact**: the hour inside a filled chip — week and day views, and any chip a consumer
+  fills — goes from grey to the chip's own contrast ink. In the month view nothing changes in
+  kind: the hour is still the quieter half of the chip, now at 78% of the cell's ink.
+
+- **What happens if you do nothing**: the hour becomes readable on filled chips. To mute it
+  everywhere again, set `--hub-calendar-day-muted` to the colour you want and declare
+  `.hub-calendar__event-time { color: var(--hub-calendar-day-muted); }` in your own sheet.
+
 ## [22.10.0] - 2026-09-23
 
 ### The day view's heading is written by `Intl`, not from the calendar dictionary

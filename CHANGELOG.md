@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [22.11.0] - 2026-09-24
+
+### Changed
+
+- **The quiet labels are now mixed from the calendar's own colours instead of borrowing the
+  application's muted grey.** `--hub-calendar-muted` — the weekday header, the week numbers,
+  the hour ruler, the year view's counts — defaults to
+  `color-mix(in oklch, var(--hub-calendar-color) 70%, var(--hub-calendar-bg))`. Re-theming a
+  calendar through `--hub-calendar-bg` and `--hub-calendar-color`, which is all the reference
+  asks of a consumer, moves both ends of that pair; a grey they never set stayed where it was,
+  which is how the documentation's own dark theme ended up with weekday names at 3.26:1 on its
+  header. They now read 6.67:1 there and 6.14:1 on the default light theme. Point
+  `--hub-calendar-muted` at `var(--hub-sys-text-muted)` for the old behaviour. See
+  BREAKING_CHANGES.md.
+- **The hour on a month-view timed chip and the "+N more" line take their mute from the cell
+  they sit in**, through the new `--hub-calendar-day-muted`, which defaults to
+  `color-mix(in srgb, currentColor 78%, transparent)`. Those two land on a surface the calendar
+  tints per state, so any opaque grey is chosen against one surface and read on another: the
+  hour measured 1.75:1 on a dark theme's selected day and 4.16:1 on nothing more exotic than
+  the default accent's today tint. They now read 5.30:1 and 6.87:1.
+- **The hour inside a filled chip takes the chip's own ink** rather than the muted grey. On a
+  filled chip the surface is the accent, and a grey chosen against the page was never going to
+  read on it.
+
+### Fixed
+
+- **The today and drag-over tints fall back to the calendar's own surface, not to white.** Both
+  are a wash of the accent over the background, and both wrote `var(--hub-calendar-bg, #fff)`
+  as that background — so a calendar on a dark theme that had not re-pointed
+  `--hub-calendar-bg` painted today's cell nearly white and left the text in it at 1.89:1. The
+  fallback is now the same chain the calendar's own background uses.
+
+### Added
+
+- `--hub-calendar-day-muted` — the quiet ink for a label inside a day cell. Documented in
+  `docs/css-variables-reference.md`.
+
 ## [22.10.0] - 2026-09-23
 
 ### Added

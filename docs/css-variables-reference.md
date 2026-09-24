@@ -104,8 +104,24 @@ Read by `projects/calendar/src/lib/components/calendar/calendar.component.scss`,
 | `--hub-calendar-accent-on`       | `oklch(from var(--hub-calendar-accent) clamp(0, (0.62 - l) * 1000, 1) 0 h)`                                          |
 | `--hub-calendar-font-family`     | `var(--hub-ref-font-family-base, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif)` |
 | `--hub-calendar-primary`         | `var(--hub-calendar-accent)`                                                                                         |
-| `--hub-calendar-muted`           | `var(--hub-sys-text-muted, #6c757d)`                                                                                 |
+| `--hub-calendar-muted`           | `color-mix(in oklch, var(--hub-calendar-color) 70%, var(--hub-calendar-bg))`                                         |
+| `--hub-calendar-day-muted`       | `color-mix(in srgb, currentColor 78%, transparent)`                                                                  |
 | `--hub-calendar-height`          | `100%`                                                                                                               |
+
+#### The two muted inks, and why there are two
+
+`--hub-calendar-muted` is the quiet ink for the labels that sit on the calendar's own
+surfaces — the weekday header, the week numbers, the hour ruler, the year view's counts. Its
+default is mixed from the calendar's own text and background rather than aliased to the
+application's muted grey, so re-theming the component through `--hub-calendar-bg` and
+`--hub-calendar-color` alone, which is all this document asks of you, carries the quiet labels
+with it. Point it at `var(--hub-sys-text-muted)` to get the old behaviour back.
+
+`--hub-calendar-day-muted` is the quiet ink for the two labels that sit **inside a day cell**:
+the hour on a month-view timed chip and the "+N more" line. Those land on a surface the
+calendar tints per state — today, selected, weekend — so their mute is taken from the ink of
+the cell they are in, as `currentColor` at 78%. Any opaque colour, derived or not, is chosen
+against one surface and read on another.
 
 #### A word about `--hub-calendar-height`
 
@@ -164,18 +180,18 @@ right-to-left calendar rounds the end the reader sees as last.
 
 ### Day Cells
 
-| Variable                               | Default                                                                             |
-| -------------------------------------- | ----------------------------------------------------------------------------------- |
-| `--hub-calendar-day-padding-x`         | `var(--hub-ref-space-1, 0.25rem)`                                                   |
-| `--hub-calendar-day-padding-y`         | `var(--hub-ref-space-1, 0.25rem)`                                                   |
-| `--hub-calendar-day-min-height`        | `80px`                                                                              |
-| `--hub-calendar-day-hover-bg`          | `var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075))`                               |
-| `--hub-calendar-day-today-bg`          | `color-mix(in oklch, var(--hub-calendar-accent) 8%, var(--hub-calendar-bg, #fff))`  |
-| `--hub-calendar-day-other-month-bg`    | `var(--hub-sys-surface-elevated, #f8f9fa)`                                          |
-| `--hub-calendar-day-other-month-color` | `var(--hub-sys-text-muted, #6c757d)`                                                |
-| `--hub-calendar-day-weekend-bg`        | `var(--hub-sys-surface-elevated, #f8f9fa)`                                          |
-| `--hub-calendar-day-selected-bg`       | `var(--hub-calendar-accent-subtle)`                                                 |
-| `--hub-calendar-day-drag-over-bg`      | `color-mix(in oklch, var(--hub-calendar-accent) 32%, var(--hub-calendar-bg, #fff))` |
+| Variable                               | Default                                                                       |
+| -------------------------------------- | ----------------------------------------------------------------------------- |
+| `--hub-calendar-day-padding-x`         | `var(--hub-ref-space-1, 0.25rem)`                                             |
+| `--hub-calendar-day-padding-y`         | `var(--hub-ref-space-1, 0.25rem)`                                             |
+| `--hub-calendar-day-min-height`        | `80px`                                                                        |
+| `--hub-calendar-day-hover-bg`          | `var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075))`                         |
+| `--hub-calendar-day-today-bg`          | `color-mix(in oklch, var(--hub-calendar-accent) 8%, var(--hub-calendar-bg))`  |
+| `--hub-calendar-day-other-month-bg`    | `var(--hub-sys-surface-elevated, #f8f9fa)`                                    |
+| `--hub-calendar-day-other-month-color` | `var(--hub-sys-text-muted, #6c757d)`                                          |
+| `--hub-calendar-day-weekend-bg`        | `var(--hub-sys-surface-elevated, #f8f9fa)`                                    |
+| `--hub-calendar-day-selected-bg`       | `var(--hub-calendar-accent-subtle)`                                           |
+| `--hub-calendar-day-drag-over-bg`      | `color-mix(in oklch, var(--hub-calendar-accent) 32%, var(--hub-calendar-bg))` |
 
 ### Events
 

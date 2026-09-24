@@ -28,7 +28,23 @@ $font-family: var(
 	--hub-calendar-font-family,
 	var(--hub-ref-font-family-base, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif)
 );
-$muted: var(--hub-calendar-muted, var(--hub-sys-text-muted, #6c757d));
+// The quiet ink for secondary labels — weekday names, week numbers, hour ruler, the year
+// view's event counts. Derived from the calendar's OWN text and surface rather than aliased
+// to the application's muted grey: a consumer who re-themes the component through
+// `--hub-calendar-bg` and `--hub-calendar-color`, which is all the README asks of them, moves
+// both ends of the pair and never thinks to move a grey they did not set. That is how the
+// light theme's #6a737b ended up on a dark brown header at 3.26:1. Pointing
+// `--hub-calendar-muted` at `var(--hub-sys-text-muted)` restores the old behaviour.
+$muted: var(--hub-calendar-muted, color-mix(in oklch, #{$color} 70%, #{$bg}));
+// The quiet ink for a label that sits INSIDE a day cell — the hour on a timed chip, the
+// "+N more" line. Those two land on a surface the calendar tints per state (today, selected,
+// weekend) and the consumer re-themes per calendar, so their mute has to be taken from the
+// ink of the cell they are in. Mixing `currentColor` with `transparent` does exactly that:
+// what comes out is the cell's own ink at 78% alpha, so it is the cell's own surface that
+// shows through, whichever one it turns out to be. Any opaque grey, derived or not, is
+// chosen against one surface and read on another — the hour measured 1.75:1 on a dark
+// theme's selected day and 4.16:1 on nothing more exotic than the default today tint.
+$day-muted: var(--hub-calendar-day-muted, color-mix(in srgb, currentColor 78%, transparent));
 $transition: var(--hub-calendar-btn-transition, var(--hub-sys-transition-base, all 0.2s ease-in-out));
 
 // Semantic accent — one slot, re-based per `variant`, with the roles derived from
@@ -64,12 +80,16 @@ $day-padding-x: var(--hub-calendar-day-padding-x, var(--hub-ref-space-1, 0.25rem
 $day-padding-y: var(--hub-calendar-day-padding-y, var(--hub-ref-space-1, 0.25rem));
 $day-min-height: var(--hub-calendar-day-min-height, 80px);
 $day-hover-bg: var(--hub-calendar-day-hover-bg, var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075)));
-$day-today-bg: var(--hub-calendar-day-today-bg, color-mix(in oklch, #{$accent} 8%, var(--hub-calendar-bg, #fff)));
+// The tint is a wash of the accent over the calendar's own surface, so it has to fall back to
+// the same surface the calendar does. It used to fall back to `#fff`, which meant a calendar
+// on a dark theme that had not re-pointed `--hub-calendar-bg` painted today's cell nearly
+// white and left its text at 1.89:1. Same reason below for the drag-over wash.
+$day-today-bg: var(--hub-calendar-day-today-bg, color-mix(in oklch, #{$accent} 8%, #{$bg}));
 $day-other-month-bg: var(--hub-calendar-day-other-month-bg, var(--hub-sys-surface-elevated, #f8f9fa));
 $day-other-month-color: var(--hub-calendar-day-other-month-color, var(--hub-sys-text-muted, #6c757d));
 $day-weekend-bg: var(--hub-calendar-day-weekend-bg, var(--hub-sys-surface-elevated, #f8f9fa));
 $day-selected-bg: var(--hub-calendar-day-selected-bg, #{$accent-subtle});
-$day-drag-over-bg: var(--hub-calendar-day-drag-over-bg, color-mix(in oklch, #{$accent} 32%, var(--hub-calendar-bg, #fff)));
+$day-drag-over-bg: var(--hub-calendar-day-drag-over-bg, color-mix(in oklch, #{$accent} 32%, #{$bg}));
 
 // Event chips
 $event-bg: var(--hub-calendar-event-bg, #{$accent});
@@ -513,6 +533,14 @@ $height: var(--hub-calendar-height, 100%);
 			background: transparent;
 			color: inherit;
 
+			// The chip has no fill of its own, so the hour is read against the day cell and
+			// takes the cell's ink, muted. A filled chip keeps the hour at full strength —
+			// see `&__event-time` — because there the surface is the accent, and a grey on a
+			// saturated accent is the pair this whole exercise is about.
+			.hub-calendar__event-time {
+				color: #{$day-muted};
+			}
+
 			&:focus-visible {
 				outline-color: #{$accent};
 			}
@@ -546,7 +574,10 @@ $height: var(--hub-calendar-height, 100%);
 	// other side without a mirrored rule.
 	&__event-time {
 		flex: 0 0 auto;
-		color: #{$muted};
+		// Whatever the chip is written in. On a filled chip that is the accent's own contrast
+		// ink, which is the only colour guaranteed to read on the accent; the muted grey that
+		// used to sit here was chosen against the page and printed on the chip.
+		color: inherit;
 		font-size: #{$event-time-font-size};
 		font-variant-numeric: tabular-nums;
 	}
@@ -586,7 +617,7 @@ $height: var(--hub-calendar-height, 100%);
 
 	&__more {
 		font-size: var(--hub-ref-font-size-xs, 0.75rem);
-		color: #{$muted};
+		color: #{$day-muted};
 		text-align: center;
 
 		// Its tooltip lists the hidden events one per line. The bubble is portaled to

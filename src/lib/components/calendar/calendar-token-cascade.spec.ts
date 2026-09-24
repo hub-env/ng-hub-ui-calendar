@@ -83,6 +83,7 @@ describe('calendar token cascade', () => {
 				'--hub-calendar-border-radius',
 				'--hub-calendar-font-family',
 				'--hub-calendar-muted',
+				'--hub-calendar-day-muted',
 				'--hub-calendar-btn-transition',
 				'--hub-calendar-accent',
 				'--hub-calendar-accent-subtle',
@@ -138,7 +139,14 @@ describe('calendar token cascade', () => {
 		expect(css).toContain('var(--hub-calendar-color, var(--hub-sys-text-primary, #212529))');
 		expect(css).toContain('var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6))');
 		expect(css).toContain('var(--hub-calendar-accent, var(--hub-sys-color-primary, #0d6efd))');
-		expect(css).toContain('var(--hub-calendar-muted, var(--hub-sys-text-muted, #6c757d))');
+		// `--hub-calendar-muted` is the one that leaves the family on purpose: its default is
+		// derived from the calendar's own ink and surface, so a consumer who re-themes the
+		// component through those two moves the quiet labels with them instead of leaving the
+		// application's grey behind on a surface that no longer suits it. The ds chain is still
+		// there — it is the chain of the two colours the mix is made of.
+		expect(css).toContain(
+			'var(--hub-calendar-muted, color-mix(in oklch, var(--hub-calendar-color, var(--hub-sys-text-primary, #212529)) 70%, var(--hub-calendar-bg, var(--hub-sys-surface-page, #ffffff))))'
+		);
 	});
 
 	it('derives the accent roles from the live slot rather than from a frozen copy', () => {
