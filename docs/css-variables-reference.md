@@ -77,7 +77,7 @@ Import the Sass entry only to use the theming mixin:
 | `--hub-ref-font-size-lg`         | `1rem`                                 |
 | `--hub-sys-surface-page`         | `#ffffff`                              |
 | `--hub-sys-surface-elevated`     | `#f9fafb`                              |
-| `--hub-sys-text-primary`         | `#1f2937`                              |
+| `--hub-sys-text-body`         | `#1f2937`                              |
 | `--hub-sys-text-muted`           | `#6b7280`                              |
 | `--hub-sys-border-color-default` | `#e5e7eb`                              |
 | `--hub-sys-color-primary`        | `#3b82f6`                              |
@@ -95,7 +95,7 @@ Read by `projects/calendar/src/lib/components/calendar/calendar.component.scss`,
 | Variable                         | Default                                                                                                              |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `--hub-calendar-bg`              | `var(--hub-sys-surface-page, #ffffff)`                                                                               |
-| `--hub-calendar-color`           | `var(--hub-sys-text-primary, #212529)`                                                                               |
+| `--hub-calendar-color`           | `var(--hub-sys-text-body, #212529)`                                                                               |
 | `--hub-calendar-border-color`    | `var(--hub-sys-border-color-default, #dee2e6)`                                                                       |
 | `--hub-calendar-border-radius`   | `var(--hub-ref-radius-md, 0.375rem)`                                                                                 |
 | `--hub-calendar-accent`          | `var(--hub-sys-color-primary, #0d6efd)`                                                                              |

@@ -145,7 +145,7 @@ interface Theme {
 const DS_LIGHT: Record<string, string> = {
 	'--hub-sys-surface-page': '#ffffff',
 	'--hub-sys-surface-elevated': '#f8f9fa',
-	'--hub-sys-text-primary': '#212529',
+	'--hub-sys-text-body': '#212529',
 	'--hub-sys-text-muted': '#6a737b',
 	'--hub-sys-color-primary': '#0d6efd'
 };
@@ -154,7 +154,7 @@ const DS_LIGHT: Record<string, string> = {
 const DS_DARK: Record<string, string> = {
 	'--hub-sys-surface-page': '#121212',
 	'--hub-sys-surface-elevated': '#1e1e1e',
-	'--hub-sys-text-primary': '#f8f9fa',
+	'--hub-sys-text-body': '#f8f9fa',
 	'--hub-sys-text-muted': '#adb5bd',
 	'--hub-sys-color-primary': '#0d6efd'
 };
@@ -191,7 +191,7 @@ const DAY_SURFACES: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /** The ink of a day cell: the calendar's own colour, which every cell inherits. */
-const DAY_INK = 'var(--hub-calendar-color, var(--hub-sys-text-primary, #212529))';
+const DAY_INK = 'var(--hub-calendar-color, var(--hub-sys-text-body, #212529))';
 
 function surface(selector: string, theme: Theme): HubRgb {
 	return resolveColor(declared(ruleBody(selector), 'background'), theme.tokens, DAY_INK);

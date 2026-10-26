@@ -84,7 +84,7 @@ Esta librería es parte del ecosistema **Hub UI**:
 npm install ng-hub-ui-calendar ng-hub-ui-utils
 ```
 
-`ng-hub-ui-ds` es una peer dependency **opcional** (`>=22.0.0`). Instálala para dar al calendario la paleta compartida de tokens `--hub-sys-*` y el modo oscuro; sin ella cada lectura de token cae en su valor por defecto y el calendario se dibuja igual.
+`ng-hub-ui-ds` es una peer dependency **opcional** (`>=22.14.1`). Instálala para dar al calendario la paleta compartida de tokens `--hub-sys-*` y el modo oscuro; sin ella cada lectura de token cae en su valor por defecto y el calendario se dibuja igual.
 
 ## 🚀 Inicio Rápido
 

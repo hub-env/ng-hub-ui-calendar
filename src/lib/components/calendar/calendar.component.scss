@@ -21,7 +21,7 @@
 
 // Surface
 $bg: var(--hub-calendar-bg, var(--hub-sys-surface-page, #ffffff));
-$color: var(--hub-calendar-color, var(--hub-sys-text-primary, #212529));
+$color: var(--hub-calendar-color, var(--hub-sys-text-body, #212529));
 $border-color: var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6));
 $border-radius: var(--hub-calendar-border-radius, var(--hub-ref-radius-md, 0.375rem));
 $font-family: var(

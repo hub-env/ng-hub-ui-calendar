@@ -136,7 +136,7 @@ describe('calendar token cascade', () => {
 		// sys token along, or an application that re-themes through the design system stops moving
 		// the calendar with it.
 		expect(css).toContain('var(--hub-calendar-bg, var(--hub-sys-surface-page, #ffffff))');
-		expect(css).toContain('var(--hub-calendar-color, var(--hub-sys-text-primary, #212529))');
+		expect(css).toContain('var(--hub-calendar-color, var(--hub-sys-text-body, #212529))');
 		expect(css).toContain('var(--hub-calendar-border-color, var(--hub-sys-border-color-default, #dee2e6))');
 		expect(css).toContain('var(--hub-calendar-accent, var(--hub-sys-color-primary, #0d6efd))');
 		// `--hub-calendar-muted` is the one that leaves the family on purpose: its default is
@@ -145,7 +145,7 @@ describe('calendar token cascade', () => {
 		// application's grey behind on a surface that no longer suits it. The ds chain is still
 		// there — it is the chain of the two colours the mix is made of.
 		expect(css).toContain(
-			'var(--hub-calendar-muted, color-mix(in oklch, var(--hub-calendar-color, var(--hub-sys-text-primary, #212529)) 70%, var(--hub-calendar-bg, var(--hub-sys-surface-page, #ffffff))))'
+			'var(--hub-calendar-muted, color-mix(in oklch, var(--hub-calendar-color, var(--hub-sys-text-body, #212529)) 70%, var(--hub-calendar-bg, var(--hub-sys-surface-page, #ffffff))))'
 		);
 	});
 
