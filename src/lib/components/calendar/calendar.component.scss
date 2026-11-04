@@ -86,7 +86,7 @@ $day-hover-bg: var(--hub-calendar-day-hover-bg, var(--hub-sys-state-hover-bg, rg
 // white and left its text at 1.89:1. Same reason below for the drag-over wash.
 $day-today-bg: var(--hub-calendar-day-today-bg, color-mix(in oklch, #{$accent} 8%, #{$bg}));
 $day-other-month-bg: var(--hub-calendar-day-other-month-bg, var(--hub-sys-surface-elevated, #f8f9fa));
-$day-other-month-color: var(--hub-calendar-day-other-month-color, var(--hub-sys-text-muted, #6c757d));
+$day-other-month-color: var(--hub-calendar-day-other-month-color, var(--hub-sys-text-muted, #6a737b));
 $day-weekend-bg: var(--hub-calendar-day-weekend-bg, var(--hub-sys-surface-elevated, #f8f9fa));
 $day-selected-bg: var(--hub-calendar-day-selected-bg, #{$accent-subtle});
 $day-drag-over-bg: var(--hub-calendar-day-drag-over-bg, color-mix(in oklch, #{$accent} 32%, #{$bg}));

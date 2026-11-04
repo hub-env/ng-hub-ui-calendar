@@ -188,7 +188,7 @@ right-to-left calendar rounds the end the reader sees as last.
 | `--hub-calendar-day-hover-bg`          | `var(--hub-sys-state-hover-bg, rgba(0, 0, 0, 0.075))`                         |
 | `--hub-calendar-day-today-bg`          | `color-mix(in oklch, var(--hub-calendar-accent) 8%, var(--hub-calendar-bg))`  |
 | `--hub-calendar-day-other-month-bg`    | `var(--hub-sys-surface-elevated, #f8f9fa)`                                    |
-| `--hub-calendar-day-other-month-color` | `var(--hub-sys-text-muted, #6c757d)`                                          |
+| `--hub-calendar-day-other-month-color` | `var(--hub-sys-text-muted, #6a737b)`                                          |
 | `--hub-calendar-day-weekend-bg`        | `var(--hub-sys-surface-elevated, #f8f9fa)`                                    |
 | `--hub-calendar-day-selected-bg`       | `var(--hub-calendar-accent-subtle)`                                           |
 | `--hub-calendar-day-drag-over-bg`      | `color-mix(in oklch, var(--hub-calendar-accent) 32%, var(--hub-calendar-bg))` |
