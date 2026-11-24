@@ -360,7 +360,10 @@
 		@if (yearLayout() === 'days') {
 			<div class="hub-calendar__year-days">
 				@for (grid of yearMonthGrids(); track grid.month.date.getTime()) {
-					<section class="hub-calendar__year-month" [attr.aria-label]="grid.month.name + ' ' + grid.month.date.getFullYear()">
+					<section
+						class="hub-calendar__year-month"
+						[attr.aria-label]="grid.month.name + ' ' + grid.month.date.getFullYear()"
+					>
 						<h3 class="hub-calendar__year-month-title">{{ getMonthCardLabel(grid.month) }}</h3>
 						<div class="hub-calendar__year-weekdays" aria-hidden="true">
 							@for (label of weekdayInitials(); track $index) {
