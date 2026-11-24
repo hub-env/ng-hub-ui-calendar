@@ -864,7 +864,7 @@ $height: var(--hub-calendar-height, 100%);
 
 	&__year-month-title {
 		margin: 0 0 var(--hub-ref-space-1, 0.25rem);
-		font-size: var(--hub-ref-font-size-md, 1rem);
+		font-size: var(--hub-ref-font-size-base, 1rem);
 		font-weight: var(--hub-ref-font-weight-semibold, 600);
 	}
 
