@@ -854,6 +854,89 @@ $height: var(--hub-calendar-height, 100%);
 		font-size: var(--hub-ref-font-size-sm, 0.875rem);
 		color: #{$muted};
 	}
+
+	// ─── Year view, day-level layout ───────────────────────────────────────────
+	&__year-days {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+		gap: var(--hub-ref-space-3, 1rem);
+	}
+
+	&__year-month-title {
+		margin: 0 0 var(--hub-ref-space-1, 0.25rem);
+		font-size: var(--hub-ref-font-size-md, 1rem);
+		font-weight: var(--hub-ref-font-weight-semibold, 600);
+	}
+
+	&__year-weekdays,
+	&__year-grid {
+		display: grid;
+		grid-template-columns: repeat(7, 1fr);
+		text-align: center;
+	}
+
+	&__year-weekdays {
+		font-size: var(--hub-ref-font-size-xs, 0.75rem);
+		color: #{$muted};
+	}
+
+	&__year-day {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 1px;
+		min-height: 2.25rem;
+		padding: 2px 0;
+		font: inherit;
+		font-size: var(--hub-ref-font-size-sm, 0.875rem);
+		color: var(--hub-calendar-year-day-fg, inherit);
+		background: var(--hub-calendar-year-day-bg, transparent);
+		border: 1px solid transparent;
+		border-radius: #{$border-radius};
+		cursor: pointer;
+
+		&:hover {
+			background: #{$month-card-hover-bg};
+		}
+
+		&:focus-visible {
+			outline: 2px solid #{$accent};
+			outline-offset: -2px;
+		}
+
+		&--weekend {
+			color: #{$muted};
+		}
+
+		&--today {
+			border-color: #{$accent};
+			font-weight: var(--hub-ref-font-weight-semibold, 600);
+		}
+
+		&--outside,
+		&:disabled {
+			opacity: 0.4;
+			cursor: not-allowed;
+		}
+	}
+
+	&__year-dots {
+		display: flex;
+		gap: 2px;
+		min-height: 6px;
+	}
+
+	// A consumer's class on the dot can set `--hub-calendar-event-bg` (or paint `background`
+	// itself, e.g. an outline for "hollow" dots).
+	&__year-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		// Two hooks a consumer's class can set on the dot without fighting this rule's specificity:
+		// a fill and a ring, e.g. a transparent fill plus a ring for a "hollow" marker.
+		background: var(--hub-calendar-year-dot-bg, #{$event-bg});
+		box-shadow: var(--hub-calendar-year-dot-ring, none);
+	}
 }
 
 // ─── Compact (mini-month) ────────────────────────────────────────────────────

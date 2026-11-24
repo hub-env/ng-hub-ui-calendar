@@ -366,6 +366,42 @@ export class EventHandlingComponent {
 | `hourFormat`        | `'12' \| '24'`                                                     | -                                        | Forces the clock everywhere; unset, the locale decides                                                                                               |
 | `weekdayFormat`     | `'short' \| 'narrow' \| 'long'`                                    | `'short'`                                | Width of the weekday column headers                                                                                                                  |
 | `monthFormat`       | `'short' \| 'long'`                                                | `'long'`                                 | How the month is written in the header and on the year cards                                                                                         |
+| `yearLayout`        | `'cards' \| 'days'`                                                | `'cards'`                                | Year view: month cards with an event count, or mini-months with every day and up to 3 event dots                                                     |
+| `rangeStart` / `rangeEnd` | `Date \| null`                                              | `null`                                   | Days outside this window are disabled in the `'days'` year layout, and the year view draws from the month holding `rangeStart` to the one holding `rangeEnd` (max 24). One bound gives twelve months from it or ending at it; none gives the calendar year of `selectedDate` |
+| `navigation`        | `boolean`                                                          | `true`                                   | Draws the previous / today / next buttons; turn it off when the consumer picks the period                                                             |
+| `yearDayClass`      | `(day: CalendarDay) => string \| null`                              | -                                        | Extra classes per day cell in the `'days'` year layout; the cell reads `--hub-calendar-year-day-bg` / `-fg`                                           |
+
+### Year view by days
+
+`yearLayout="days"` turns the year view into a grid of mini-months. Each day shows up to three dots,
+one per event covering it (multi-day events count on every day). A dot takes the event's
+`cssClass` / `eventClass` and is painted with `--hub-calendar-event-bg`, so a class can colour it
+(or draw it hollow). Days carry an accessible label and a native tooltip with the event titles.
+A click, `Enter` or `Space` emits `dayClick` and `dayActivate`; the view does not drill into the
+month. `rangeStart` and `rangeEnd` set the span, so a school year is two dates; the header names it
+(`2026–2027`) when it crosses years, and the days of the first and last month that the period does
+not cover are disabled. Without a range, previous / next move the plain year.
+
+Two custom properties shape a dot from a consumer class without fighting the library's own rule:
+`--hub-calendar-year-dot-bg` (fill) and `--hub-calendar-year-dot-ring` (a `box-shadow`, e.g.
+`inset 0 0 0 1px currentColor`). A transparent fill plus a ring gives a hollow dot.
+
+```html
+<hub-calendar
+	view="year"
+	yearLayout="days"
+	[selectedDate]="schoolYearStart"
+	[events]="closures()"
+	[rangeStart]="schoolYear.start"
+	[rangeEnd]="schoolYear.end"
+	(dayActivate)="openMenu($event.day, $event.element)"
+/>
+```
+
+```css
+.closure { --hub-calendar-event-bg: #dc3545; }
+.holiday { --hub-calendar-event-bg: #198754; }
+```
 
 ### Sizing the calendar
 
@@ -514,6 +550,7 @@ defaults on its own.
 | -------------------- | ---------------------------------- | ------------------------------------------------------------------- |
 | `eventClick`         | `CalendarEvent`                    | Emitted when an event is clicked                                    |
 | `dayClick`           | `CalendarDay`                      | Emitted when a day cell is clicked                                  |
+| `dayActivate`        | `{ day: CalendarDay, element: HTMLElement }` | Emitted when a day of the `'days'` year layout is activated; carries the cell so a menu can be anchored to it |
 | `eventDrop`          | `{ event, newDate, previousDate }` | Emitted when an event is dropped on another day                     |
 | `viewChange`         | `CalendarViewType`                 | Emitted when the view type changes — the `[(view)]` half of `model` |
 | `selectedDateChange` | `Date`                             | Emitted when the selected day changes — the `[(selectedDate)]` half |

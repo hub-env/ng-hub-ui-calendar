@@ -358,6 +358,38 @@ export class EventHandlingComponent {
 | `hourFormat`        | `'12' \| '24'`                                                     | -                                        | Fuerza el reloj en todas partes; sin valor decide el idioma                                                                                                  |
 | `weekdayFormat`     | `'short' \| 'narrow' \| 'long'`                                    | `'short'`                                | Ancho de las cabeceras de días de la semana                                                                                                                  |
 | `monthFormat`       | `'short' \| 'long'`                                                | `'long'`                                 | Cómo se escribe el mes en la cabecera y en las tarjetas de año                                                                                               |
+| `yearLayout`        | `'cards' \| 'days'`                                                | `'cards'`                                | Vista de año: tarjetas de mes con recuento de eventos, o minimeses con todos los días y hasta 3 puntos por evento |
+| `rangeStart` / `rangeEnd` | `Date \| null`                                              | `null`                                   | Los días fuera de esta ventana se deshabilitan en la vista de año por días, y la vista dibuja desde el mes de `rangeStart` hasta el de `rangeEnd` (máx. 24). Con un solo límite muestra doce meses desde él o hasta él; sin ninguno, el año natural de `selectedDate` |
+| `navigation`        | `boolean`                                                          | `true`                                   | Muestra los botones anterior / hoy / siguiente; se desactiva cuando el periodo lo elige quien usa el calendario |
+| `yearDayClass`      | `(day: CalendarDay) => string \| null`                              | -                                        | Clases extra por celda de día en la vista de año por días; la celda lee `--hub-calendar-year-day-bg` / `-fg` |
+
+
+### Vista de año por días
+
+`yearLayout="days"` convierte la vista de año en una cuadrícula de minimeses. Cada día muestra hasta
+tres puntos, uno por evento que lo cubre (los eventos de varios días cuentan en cada día). El punto
+toma el `cssClass` / `eventClass` del evento y se pinta con `--hub-calendar-event-bg`, así que una
+clase puede darle color (o dejarlo hueco). Los días llevan etiqueta accesible y un tooltip nativo con
+los títulos. Clic, `Enter` o `Espacio` emiten `dayClick` y `dayActivate`; la vista no salta al mes.
+`rangeStart` y `rangeEnd` fijan el periodo, así que un curso escolar son dos fechas; la cabecera lo nombra
+(`2026–2027`) cuando cruza años, y los días del primer y último mes que el periodo no cubre quedan deshabilitados.
+Sin rango, anterior / siguiente mueven el año natural.
+
+Dos propiedades personalizadas dan forma a un punto desde una clase propia sin competir con la regla de la librería:
+`--hub-calendar-year-dot-bg` (relleno) y `--hub-calendar-year-dot-ring` (un `box-shadow`, por ejemplo
+`inset 0 0 0 1px currentColor`). Un relleno transparente con anillo da un punto hueco.
+
+```html
+<hub-calendar
+	view="year"
+	yearLayout="days"
+	[selectedDate]="schoolYearStart"
+	[events]="closures()"
+	[rangeStart]="schoolYear.start"
+	[rangeEnd]="schoolYear.end"
+	(dayActivate)="openMenu($event.day, $event.element)"
+/>
+```
 
 ### Cómo fijar el alto del calendario
 
@@ -512,6 +544,7 @@ a esos valores por su cuenta.
 | -------------------- | ---------------------------------- | ------------------------------------------------------------------------ |
 | `eventClick`         | `CalendarEvent`                    | Emitido cuando se hace clic en un evento                                 |
 | `dayClick`           | `CalendarDay`                      | Emitido cuando se hace clic en una celda de día                          |
+| `dayActivate`        | `{ day: CalendarDay, element: HTMLElement }` | Emitido al activar un día de la vista de año por días; incluye la celda para anclar un menú |
 | `eventDrop`          | `{ event, newDate, previousDate }` | Emitido cuando se suelta un evento en otro día                           |
 | `viewChange`         | `CalendarViewType`                 | Emitido cuando cambia el tipo de vista — la mitad `[(view)]` del `model` |
 | `selectedDateChange` | `Date`                             | Emitido cuando cambia el día seleccionado — la mitad `[(selectedDate)]`  |

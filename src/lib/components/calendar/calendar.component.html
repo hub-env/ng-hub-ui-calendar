@@ -357,22 +357,65 @@
 <!-- Year View -->
 @if (view() === 'year') {
 	<div class="hub-calendar__year-view">
-		<div class="hub-calendar__months-grid">
-			@for (month of months(); track month.date.getTime()) {
-				<div
-					class="hub-calendar__month-card"
-					role="button"
-					tabindex="0"
-					[attr.aria-label]="getMonthAriaLabel(month)"
-					(click)="onMonthClick(month.date)"
-					(keydown)="onMonthKeydown(month.date, $event)"
-				>
-					<span class="hub-calendar__month-name">{{ getMonthCardLabel(month) }}</span>
-					@if (month.eventCount > 0) {
-						<span class="hub-calendar__month-events">{{ getEventCountLabel(month.eventCount) }}</span>
-					}
-				</div>
-			}
-		</div>
+		@if (yearLayout() === 'days') {
+			<div class="hub-calendar__year-days">
+				@for (grid of yearMonthGrids(); track grid.month.date.getTime()) {
+					<section class="hub-calendar__year-month" [attr.aria-label]="grid.month.name + ' ' + grid.month.date.getFullYear()">
+						<h3 class="hub-calendar__year-month-title">{{ getMonthCardLabel(grid.month) }}</h3>
+						<div class="hub-calendar__year-weekdays" aria-hidden="true">
+							@for (label of weekdayInitials(); track $index) {
+								<span>{{ label }}</span>
+							}
+						</div>
+						<div class="hub-calendar__year-grid">
+							@for (cell of grid.cells; track $index) {
+								@if (cell) {
+									<button
+										type="button"
+										class="hub-calendar__year-day"
+										[class.hub-calendar__year-day--weekend]="cell.isWeekend"
+										[class.hub-calendar__year-day--today]="cell.isToday"
+										[class.hub-calendar__year-day--outside]="isOutsideRange(cell.date)"
+										[class]="yearDayClass()?.(cell) ?? ''"
+										[disabled]="isOutsideRange(cell.date)"
+										[attr.aria-label]="getYearDayLabel(cell)"
+										[attr.aria-current]="cell.isToday ? 'date' : null"
+										[attr.title]="cell.events.length ? getYearDayTitles(cell) : null"
+										(click)="onYearDayActivate(cell, $any($event.currentTarget))"
+									>
+										<span class="hub-calendar__year-day-number">{{ cell.date.getDate() }}</span>
+										<span class="hub-calendar__year-dots" aria-hidden="true">
+											@for (event of cell.events.slice(0, 3); track $index) {
+												<span class="hub-calendar__year-dot {{ getEventClass(event) }}"></span>
+											}
+										</span>
+									</button>
+								} @else {
+									<span></span>
+								}
+							}
+						</div>
+					</section>
+				}
+			</div>
+		} @else {
+			<div class="hub-calendar__months-grid">
+				@for (month of months(); track month.date.getTime()) {
+					<div
+						class="hub-calendar__month-card"
+						role="button"
+						tabindex="0"
+						[attr.aria-label]="getMonthAriaLabel(month)"
+						(click)="onMonthClick(month.date)"
+						(keydown)="onMonthKeydown(month.date, $event)"
+					>
+						<span class="hub-calendar__month-name">{{ getMonthCardLabel(month) }}</span>
+						@if (month.eventCount > 0) {
+							<span class="hub-calendar__month-events">{{ getEventCountLabel(month.eventCount) }}</span>
+						}
+					</div>
+				}
+			</div>
+		}
 	</div>
 }

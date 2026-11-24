@@ -247,6 +247,43 @@ export class HubCalendarComponent<T = any> {
 	/** Width of the weekday column headers. */
 	readonly weekdayFormat = input<'short' | 'narrow' | 'long' | undefined>(undefined);
 
+	/**
+	 * What the year view draws. `'cards'` keeps the twelve month cards with an event count that
+	 * open the month; `'days'` draws every month as a mini-month with its days and one dot per
+	 * event, and a click on a day reports the day instead of leaving the view.
+	 * @default 'cards'
+	 */
+	readonly yearLayout = input<'cards' | 'days'>('cards');
+
+	/**
+	 * First day of an active period, such as a school year. In the year view it also decides which
+	 * months are drawn: the first one is the month holding this day, and the days of that month
+	 * before it are disabled in the `'days'` layout. With only this bound the view shows twelve
+	 * months from it; with neither bound it shows the calendar year of `selectedDate`.
+	 */
+	readonly rangeStart = input<Date | null>(null);
+
+	/**
+	 * Last day of an active period. The last month drawn is the one holding this day, and the days
+	 * after it are disabled in the `'days'` layout. With only this bound the view shows the twelve
+	 * months ending at it. A span longer than 24 months is cut to its first 24.
+	 */
+	readonly rangeEnd = input<Date | null>(null);
+
+	/**
+	 * Draws the previous / today / next buttons. A consumer that drives the date itself, such as a
+	 * school-year picker over the `'days'` year layout, turns them off so the grid cannot drift away
+	 * from the period it shows. The view switcher keeps its own rule (`availableViews`).
+	 */
+	readonly navigation = input(true, { transform: booleanAttribute });
+
+	/**
+	 * Extra classes for a day cell of the `'days'` year layout, e.g. to fill the days a group has
+	 * class. The returned class can set `--hub-calendar-year-day-bg` and `--hub-calendar-year-day-fg`,
+	 * which the cell reads, so a consumer stylesheet does not have to out-rank the library's rule.
+	 */
+	readonly yearDayClass = input<((day: CalendarDay<T>) => string | null | undefined) | undefined>(undefined);
+
 	/** How the month is written in the header and on the year view's cards. */
 	readonly monthFormat = input<'short' | 'long' | undefined>(undefined);
 
@@ -323,7 +360,7 @@ export class HubCalendarComponent<T = any> {
 	 * Compact is the only thing that takes them away, and it takes both: leaving the arrows
 	 * behind a hidden switcher would keep the row of buttons this mode exists to remove.
 	 */
-	protected readonly showToolbar = computed(() => !this.compact());
+	protected readonly showToolbar = computed(() => !this.compact() && this.navigation());
 
 	/**
 	 * Whether the view switcher is drawn at all.
@@ -350,6 +387,12 @@ export class HubCalendarComponent<T = any> {
 	 * Provides the day object with date and events.
 	 */
 	readonly dayClick = output<CalendarDay<T>>();
+
+	/**
+	 * A day of the `'days'` year layout was activated (click, Enter or Space). Unlike `dayClick`
+	 * it carries the clicked cell, so a consumer can anchor its own menu to it.
+	 */
+	readonly dayActivate = output<{ day: CalendarDay<T>; element: HTMLElement }>();
 
 	/**
 	 * Emitted when an event is dropped on a different day (drag and drop).
@@ -517,6 +560,13 @@ export class HubCalendarComponent<T = any> {
 		return Array.from({ length: 7 }, (_, index) => formatter.format(new Date(2026, 1, 1 + index)));
 	});
 
+	/** Single-letter weekday headings of the mini-months, rotated to the first day of the week. */
+	protected readonly weekdayInitials = computed(() => {
+		const names = this.narrowWeekdayNames();
+		const start = this.firstDayOfWeek();
+		return [...names.slice(start), ...names.slice(0, start)];
+	});
+
 	/**
 	 * Full weekday names for accessible column-header labels.
 	 * Rotated to the configured first day of the week, mirroring `weekdayLabels`.
@@ -561,7 +611,10 @@ export class HubCalendarComponent<T = any> {
 	 */
 	readonly headerTitle = computed(() => {
 		if (this.view() === CalendarViewType.YEAR) {
-			return `${this.currentYear()}`;
+			const { start, count } = this.yearSpan();
+			const first = start.getFullYear();
+			const last = new Date(first, start.getMonth() + count - 1, 1).getFullYear();
+			return first === last ? `${first}` : `${first}\u2013${last}`;
 		}
 
 		const format = this._displayFormat();
@@ -718,6 +771,59 @@ export class HubCalendarComponent<T = any> {
 	readonly months = computed<CalendarMonth[]>(() => this.generateYearMonths());
 
 	/**
+	 * First month and number of months the year view draws, read from `rangeStart` / `rangeEnd`.
+	 * One bound gives a twelve-month window anchored on it, and none gives the calendar year of
+	 * `selectedDate`, so the view needs no setting to behave as a plain year.
+	 */
+	protected readonly yearSpan = computed(() => {
+		const from = this.rangeStart();
+		const to = this.rangeEnd();
+		const monthIndex = (d: Date) => d.getFullYear() * 12 + d.getMonth();
+		let first: number;
+		let count = 12;
+
+		if (from && to) {
+			first = monthIndex(from);
+			count = Math.min(24, Math.max(1, monthIndex(to) - first + 1));
+		} else if (from) {
+			first = monthIndex(from);
+		} else if (to) {
+			first = monthIndex(to) - 11;
+		} else {
+			first = this.selectedDate().getFullYear() * 12;
+		}
+
+		return { start: new Date(Math.floor(first / 12), first % 12, 1), count };
+	});
+
+	/**
+	 * Mini-months of the `'days'` year layout. `cells` is a flat list for a 7-column grid:
+	 * `null` pads the days before the 1st, and nothing pads the end, so neighbouring months
+	 * never show.
+	 */
+	readonly yearMonthGrids = computed(() =>
+		this.months().map((month) => {
+			const year = month.date.getFullYear();
+			const m = month.date.getMonth();
+			const lead = (month.date.getDay() - this.firstDayOfWeek() + 7) % 7;
+			const total = new Date(year, m + 1, 0).getDate();
+			const cells: (CalendarDay<T> | null)[] = Array.from({ length: lead }, () => null);
+			for (let d = 1; d <= total; d++) {
+				const date = new Date(year, m, d);
+				cells.push({
+					date,
+					events: this.getEventsForDate(date),
+					isToday: this.isSameDay(date, this.today()),
+					isCurrentMonth: true,
+					isWeekend: date.getDay() === 0 || date.getDay() === 6,
+					isSelected: false
+				});
+			}
+			return { month, cells };
+		})
+	);
+
+	/**
 	 * Hours array for day/week time slots.
 	 * Based on dayStartHour and dayEndHour config.
 	 */
@@ -834,6 +940,40 @@ export class HubCalendarComponent<T = any> {
 	onDayClick(day: CalendarDay<T>): void {
 		this.selectedDate.set(day.date);
 		this.dayClick.emit(day);
+	}
+
+	/**
+	 * Activates a day of the `'days'` year layout. It does not touch `selectedDate`: with a
+	 * range longer than a year that would shift the visible range under the user's finger.
+	 * @param day - The activated day
+	 * @param element - The clicked cell, for consumers anchoring a menu to it
+	 */
+	onYearDayActivate(day: CalendarDay<T>, element: HTMLElement): void {
+		this.dayClick.emit(day);
+		this.dayActivate.emit({ day, element });
+	}
+
+	/**
+	 * Accessible name of a `'days'` year cell: the full date, then the event count and titles.
+	 * @param day - The day the cell stands for
+	 */
+	protected getYearDayLabel(day: CalendarDay<T>): string {
+		const base = this.getDayAriaLabel(day);
+		return day.events.length
+			? `${base}, ${this.getEventCountLabel(day.events.length)}: ${this.getYearDayTitles(day)}`
+			: base;
+	}
+
+	/** Event titles of a day, joined for the native tooltip. */
+	protected getYearDayTitles(day: CalendarDay<T>): string {
+		return day.events.map((event) => event.title).join(', ');
+	}
+
+	/** Whether a day lies outside the optional `rangeStart`/`rangeEnd` window, which disables its cell. */
+	protected isOutsideRange(date: Date): boolean {
+		const start = this.rangeStart();
+		const end = this.rangeEnd();
+		return (!!start && date < this.startOfDay(start)) || (!!end && date > this.startOfDay(end));
 	}
 
 	/**
@@ -1657,14 +1797,15 @@ export class HubCalendarComponent<T = any> {
 	 * @returns Array of month summaries for the visible year
 	 */
 	private generateYearMonths(): CalendarMonth[] {
-		const year = this.selectedDate().getFullYear();
+		const { start: rangeStart, count } = this.yearSpan();
 		const months = this.getTranslation('months') || CALENDAR_I18N['en']['months'];
 		const monthsShort = this.getTranslation('monthsShort') || CALENDAR_I18N['en']['monthsShort'];
 		const result: CalendarMonth[] = [];
 
-		for (let m = 0; m < 12; m++) {
-			const monthDate = new Date(year, m, 1);
-			const monthEnd = new Date(year, m + 1, 0);
+		for (let i = 0; i < count; i++) {
+			const monthDate = new Date(rangeStart.getFullYear(), rangeStart.getMonth() + i, 1);
+			const m = monthDate.getMonth();
+			const monthEnd = new Date(monthDate.getFullYear(), m + 1, 0);
 			const eventCount = this.events().filter((e) => {
 				const eventDate = new Date(e.start);
 				return eventDate >= monthDate && eventDate <= monthEnd;

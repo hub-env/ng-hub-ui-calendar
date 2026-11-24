@@ -12,6 +12,8 @@ The library ships one component, `hub-calendar`, plus the two structural directi
 |                | Week time grid (`view="week"`)                     |       ✅        |
 |                | Day time grid (`view="day"`)                       |       ✅        |
 |                | Year overview of month cards (`view="year"`)       |       ✅        |
+|                | Year by days: `yearLayout="days"`, dots per day, `dayActivate` |   ❌        |
+|                | Year span from `rangeStart` / `rangeEnd`; days outside it are disabled |   ❌        |
 |                | Two-way `[(view)]` / `viewChange`                  |       ✅        |
 |                | Switcher narrowed by `config.availableViews`       |       ❌        |
 |                | A single available view renders no switcher at all |       ❌        |

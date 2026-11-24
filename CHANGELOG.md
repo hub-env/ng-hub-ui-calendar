@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [22.12.0] - 2026-11-24
+
+### Added
+
+- **Year view by days.** `yearLayout="days"` draws the year view as mini-months with every day and
+  up to three dots per day, one per event covering it. The dot takes the event's `cssClass` /
+  `eventClass` and `--hub-calendar-event-bg`. Days have an accessible label and a tooltip listing
+  the event titles. The default, `'cards'`, is the view as it was.
+- **The year view follows `rangeStart` / `rangeEnd`.** It draws from the month holding `rangeStart`
+  to the month holding `rangeEnd` (up to 24), so a school year needs two dates and no month
+  arithmetic. With one bound it shows twelve months from it, or ending at it; with none, the
+  calendar year of `selectedDate`. The header names a span that crosses years (`2026–2027`).
+- **Days outside the range are disabled** in the `'days'` layout: dimmed, unclickable and out of the
+  tab order, so a day of the first or last month that the period does not cover cannot be activated.
+- **`dayActivate` output**, emitted with `{ day, element }` when a day of the `'days'` layout is
+  clicked or activated by keyboard, so a consumer can anchor its own menu. `dayClick` is emitted
+  too; the view does not drill into the month.
+- **`navigation` input** (default `true`). Set to `false`, it hides the previous / today / next
+  buttons, for a consumer that picks the period itself.
+- **`yearDayClass` input.** A function that returns extra classes for each day cell of the `'days'`
+  layout; the cell reads `--hub-calendar-year-day-bg` and `--hub-calendar-year-day-fg`, so a class can
+  fill the days that matter (e.g. the days a group has class).
+- **Dot hooks.** `--hub-calendar-year-dot-bg` and `--hub-calendar-year-dot-ring` set a dot's fill
+  and ring from a consumer class, e.g. a transparent fill with a ring for a hollow marker.
+
 ## [22.11.3] - 2026-11-04
 
 ### Fixed
